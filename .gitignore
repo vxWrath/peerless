@@ -1,0 +1,6 @@
+*venv
+*.pyc
+.env
+Dockerfile
+docker-compose.yml
+main.py
