@@ -4,7 +4,9 @@ from enum import Enum
 from typing import Any, Optional, Set, Union
 
 import asyncpg
+from discord.utils import MISSING
 
+from .cache import Cache
 from .models import LeagueData, PlayerData, PlayerLeagueData
 
 __all__ = (
@@ -34,7 +36,9 @@ async def postgres_initializer(con):
     )
 
 class Database:
-    def __init__(self) -> None:
+    def __init__(self, cache: Cache) -> None:
+        self.cache = cache
+
         self.pool: asyncpg.Pool
 
     async def connect(self) -> None:
@@ -132,41 +136,81 @@ class Database:
     
     async def update_league(self, league_data: LeagueData, *, keys: Set[str]) -> None:
         await self.update(Table.LEAGUES, league_data, keys=keys)
+        await self.cache.hash_set(league_data, identifier=str(league_data.id), keys=keys)
 
-    async def update_player_league(self, player_league_data: PlayerLeagueData, *, keys: Set[str]):
+    async def update_player_league(self, player_league_data: PlayerLeagueData, *, keys: Set[str]) -> None:
         await self.update(Table.PLAYER_LEAGUES, player_league_data, keys=keys)
+        await self.cache.hash_set(player_league_data, identifier=f"{player_league_data.player_id}:{player_league_data.league_id}", keys=keys)
 
     async def fetch_league(self, league_id: int, *, keys: Set[str]) -> Optional[LeagueData]:
         necessary_keys = {'id'}
         necessary_keys.update(keys)
 
-        data = await self.pool.fetchrow(f"SELECT {', '.join(necessary_keys)} FROM {Table.LEAGUES.value} WHERE id=$1", league_id)
+        league_data, missing = await self.cache.hash_get(LeagueData, identifier=str(league_id), keys=keys)
 
-        if not data:
-            return None
+        if league_data and missing:
+            data = await self.pool.fetchrow(f"SELECT {', '.join(missing)} FROM {Table.LEAGUES.value} WHERE id=$1", league_id)
+            
+            league_data = league_data.model_validate(data | league_data.model_dump())
+            await self.cache.hash_set(league_data, identifier=str(league_id), keys=necessary_keys)
+
+        elif not league_data:
+            data = await self.pool.fetchrow(f"SELECT {', '.join(necessary_keys)} FROM {Table.LEAGUES.value} WHERE id=$1", league_id)
+
+            if not data:
+                return None
+            
+            league_data = LeagueData.model_validate(dict(data))
+            await self.cache.hash_set(league_data, identifier=str(league_id), keys=missing)
         
-        league_data = LeagueData.model_validate(dict(data))
         league_data._db = self
-
         return league_data
-    
-    async def fetch_player(self, player_id: int, league_id: int, *, keys: Set[str]) -> Optional[PlayerData]:
+
+    async def fetch_player(self, player_id: int, league_id: Optional[int], *, keys: Set[str]) -> Optional[PlayerData]:
         necessary_keys = {'player_id', 'league_id'}
         necessary_keys.update(keys)
 
-        data = await self.pool.fetchrow(f"SELECT id FROM {Table.PLAYERS.value} WHERE id=$1", player_id)
+        player_data, _ = await self.cache.hash_get(PlayerData, identifier=str(league_id), keys={'id'})
 
-        if not data:
-            return None
-        
-        player_data = PlayerData.model_validate(dict(data) | {"leagues": {}})
+        if not league_id:
+            player_league_data = None
+            missing = MISSING
+        else:
+            player_league_data, missing = await self.cache.hash_get(PlayerLeagueData, identifier=f"{player_id}:{league_id}", keys=necessary_keys)
+
+        if not player_data or missing:
+            async with self.pool.acquire() as con:
+                if not player_data:
+                    data = await con.fetchrow(f"SELECT id FROM {Table.PLAYERS.value} WHERE id=$1", player_id)
+
+                    if not data:
+                        return None
+                    
+                    player_data = PlayerData.model_validate(dict(data) | {"leagues": {}})
+                    await self.cache.hash_set(player_data, identifier=str(player_id), keys={'id'})
+
+                if missing != MISSING and not player_league_data:
+                    data = await con.fetchrow(f"SELECT {', '.join(necessary_keys)} FROM {Table.PLAYER_LEAGUES.value} WHERE player_id=$1 AND league_id=$2", player_id, league_id)
+
+                    if data:
+                        player_league_data = PlayerLeagueData.model_validate(dict(data))
+                        await self.cache.hash_set(player_league_data, identifier=f"{player_id}:{league_id}", keys=necessary_keys)
+
+                # We have player_league_data, but keys are missing.
+                elif missing != MISSING and player_league_data and missing:
+                    data = await con.fetchrow(f"SELECT {', '.join(missing)} FROM {Table.PLAYER_LEAGUES.value} WHERE player_id=$1 AND league_id=$2", player_id, league_id)
+
+                    if data:
+                        player_league_data = player_league_data.model_validate(data | player_league_data.model_dump())
+                        await self.cache.hash_set(player_league_data, identifier=f"{player_id}:{league_id}", keys=missing)
+                    else:
+                        # Set to None if no data is found because we didn't find all of the necessary keys.
+                        player_league_data = None
+
         player_data._db = self
 
-        data = await self.pool.fetchrow(f"SELECT {', '.join(necessary_keys)} FROM {Table.PLAYER_LEAGUES.value} WHERE player_id=$1 AND league_id=$2", player_id, league_id)
-        if data:
-            player_league_data = PlayerLeagueData.model_validate(dict(data))
+        if player_league_data:
             player_league_data._db = self
-
             player_data.leagues[player_league_data.league_id] = player_league_data
 
         return player_data
@@ -180,7 +224,7 @@ class Database:
         return league_data
     
     async def produce_player(self, player_id: int, league_data: Optional[LeagueData]=None, *, keys: Optional[Set[str]]=None) -> PlayerData:
-        player_data = await self.fetch_player(player_id, league_data.id if league_data else 0, keys=keys or set())
+        player_data = await self.fetch_player(player_id, league_data.id if league_data else None, keys=keys or set())
 
         if not player_data:
             player_data = await self.create_player(player_id)

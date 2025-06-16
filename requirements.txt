@@ -2,3 +2,4 @@ pydantic
 discord.py
 asyncpg
 sqlalchemy
+redis[hiredis]
