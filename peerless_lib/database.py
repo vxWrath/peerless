@@ -47,7 +47,7 @@ class Database:
             await self.pool.close()
 
     async def insert(self, table: Table, model: Union[LeagueData, PlayerData, PlayerLeagueData], excluded: Set[str]) -> None:
-        dump = model.model_dump(exclude=excluded)
+        dump = model.model_dump(mode='json', exclude=excluded)
 
         try:
             await self.pool.execute(f"""
@@ -60,7 +60,7 @@ class Database:
             raise RuntimeError(f"Database error during insert: {e}")
 
     async def update(self, table: Table, model: Union[LeagueData, PlayerData, PlayerLeagueData], *, keys: Set[str]) -> None:
-        dump = model.model_dump(include=set(keys))
+        dump = model.model_dump(mode='json', include=set(keys))
 
         try:
             if isinstance(model, PlayerLeagueData):
