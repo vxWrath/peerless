@@ -7,8 +7,3 @@ __pycache__
 .DS_Store
 .vscode
 .idea
-
-docker-compose.yml
-Dockerfile
-main.py
-schema.py

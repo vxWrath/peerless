@@ -3,3 +3,5 @@ discord.py
 asyncpg
 sqlalchemy
 redis[hiredis]
+colorlog
+psycopg2-binary
