@@ -1,2 +1,4 @@
 pydantic
 discord.py
+asyncpg
+sqlalchemy

@@ -1,6 +1,14 @@
-*venv
+.git
+__pycache__
 *.pyc
+*.pyo
+*.pyd
 .env
-Dockerfile
+.DS_Store
+.vscode
+.idea
+
 docker-compose.yml
+Dockerfile
 main.py
+schema.py

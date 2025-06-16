@@ -1,11 +1,33 @@
-from typing import Any, Dict, List, Literal, Mapping, Optional, Self, Type, TypedDict
+import datetime
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Self,
+    Tuple,
+    Type,
+    TypedDict,
+)
 from uuid import uuid4
 
 from discord.utils import MISSING
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic import ConfigDict, Field, ModelWrapValidatorHandler, model_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    ModelWrapValidatorHandler,
+    PrivateAttr,
+    model_validator,
+)
 
 from .namespace import Namespace
+
+if TYPE_CHECKING:
+    from .database import Database
 
 __all__ = (
     'LeagueData',
@@ -57,6 +79,8 @@ class LeagueData(DataModel):
     teams: Namespace[str, 'TeamData'] = Field(default_factory=Namespace)
     settings: Namespace[str, 'SettingData[Any]'] = Field(default_factory=Namespace)
 
+    _db: 'Database' = PrivateAttr(init=False)
+
 class SettingData[V: Any](PydanticBaseModel):
     value: V
     type: SettingType
@@ -78,6 +102,9 @@ class TeamData(PydanticBaseModel):
 
 class PlayerData(DataModel):
     id: int
+    leagues: Namespace[int, 'PlayerLeagueData'] = Field(default_factory=Namespace)
+
+    _db: 'Database' = PrivateAttr(init=False)
 
     def __getattribute__(self, key: str) -> Any:
         return super(PydanticBaseModel, self).__getattribute__(key)
@@ -85,3 +112,33 @@ class PlayerData(DataModel):
 class PlayerLeagueData(DataModel):
     player_id: int
     league_id: int
+
+    demands: 'DemandData' = Field(default_factory=lambda: DemandData(remaining=0, available_at=datetime.datetime.now()))
+    suspension: Optional['SuspensionData'] = None
+    contract: Optional['ContractData'] = None
+
+    appointed_at: Optional[datetime.datetime] = None
+    waitlisted_at: Optional[datetime.datetime] = None
+    blacklisted: bool = False
+
+    _db: 'Database' = PrivateAttr(init=False)
+
+    @property
+    def id(self) -> Tuple[int, int]:
+        return (self.player_id, self.league_id)
+
+class DemandData(TypedDict):
+    remaining: int
+    available_at: datetime.datetime
+
+class SuspensionData(TypedDict):
+    reason: Optional[str]
+    until: datetime.datetime
+    banned: bool
+    proof: Optional[List[str]]
+
+class ContractData(TypedDict):
+    team_token: str
+    notes: str
+    salary: Optional[float]
+    length: float
