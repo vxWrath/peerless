@@ -1,5 +1,4 @@
 import datetime
-import os
 from typing import List
 
 from sqlalchemy import (
@@ -13,6 +12,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from .env import get_env
 from .logger import get_logger
 
 logger = get_logger()
@@ -54,7 +54,7 @@ class PlayerLeagueTable(Base):
     blacklisted: Mapped[bool] = mapped_column(Boolean, default=False)
 
 def create_missing_tables(missing_tables: List[str]) -> None:
-    engine = create_engine(os.getenv("DATABASE_URL", ""), echo=False)
+    engine = create_engine(get_env("DATABASE_URL"), echo=False)
 
     logger.info(f"Missing tables detected: {missing_tables}")
     Base.metadata.create_all(bind=engine)

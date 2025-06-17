@@ -1,19 +1,26 @@
-import asyncio
 import json
-import os
 from enum import Enum
 from typing import Any, Optional, Set, Union
 
 import asyncpg
 from discord.utils import MISSING
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from .cache import Cache
+from .env import get_env
 from .models import LeagueData, PlayerData, PlayerLeagueData
 from .schema import create_missing_tables
 
 __all__ = (
     'Database',
 )
+
+DATABASE_URL = get_env("DATABASE_URL")
 
 class Table(str, Enum):
     PLAYERS = "players"
@@ -45,15 +52,11 @@ class Database:
 
     async def connect(self) -> None:
         """Connect to the PostgreSQL database."""
-        for _ in range(2):
-            try:
-                self.pool = await asyncpg.create_pool(dsn=os.getenv("DATABASE_URL", ""), init=postgres_initializer)
-                break
-            except asyncpg.PostgresError:
-                await asyncio.sleep(10)
-        else:
-            raise RuntimeError(f"Failed to connect to the database")
-            
+        await self._handle_connect()
+
+        if not self.cache.redis.connection or not self.cache.redis.connection.is_connected:
+            await self.cache.connect()
+
         # Ensure the necessary tables exist
         table_names = [table.value for table in Table]
 
@@ -64,6 +67,14 @@ class Database:
 
         if missing_tables:
             create_missing_tables(missing_tables)
+
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((asyncpg.PostgresError,))
+    )
+    async def _handle_connect(self) -> None:
+        self.pool = await asyncpg.create_pool(dsn=DATABASE_URL, init=postgres_initializer)
 
     async def close(self) -> None:
         """Close the database connection pool."""

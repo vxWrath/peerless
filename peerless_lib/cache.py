@@ -1,16 +1,24 @@
 import asyncio
 import json
-import os
 from typing import Any, Dict, Iterable, Optional, Set, Tuple, Type, Union
 
 from pydantic import BaseModel as PydanticBaseModel
 from redis.asyncio.client import Redis
+from tenacity import (
+    retry,
+    retry_if_not_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
+from .env import get_env
 from .models import LeagueData, PlayerData, PlayerLeagueData
 
 __all__ = (
     "Cache",
 )
+
+REDIS_URL = get_env("REDIS_URL")
 
 class Cache:
     def __init__(self) -> None:
@@ -20,12 +28,27 @@ class Cache:
 
     async def connect(self) -> None:
         self.redis = Redis.from_url(
-            os.getenv("REDIS_URL", ""), 
+            REDIS_URL,
             decode_responses=True,
             health_check_interval=60,
             retry_on_timeout=True,
         )
-        await self.redis.initialize()
+
+        await self._handle_connect()
+
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_not_exception_type((RuntimeError,))
+    )
+    async def _handle_connect(self) -> None:
+        if not hasattr(self, 'redis'):
+            raise RuntimeError("Redis client is not initialized. Please call connect() first.")
+        
+        try:
+            await self.redis.initialize()
+        except Exception as e:
+            raise ConnectionError(f"Failed to connect to Redis: {e}") from e
 
     async def close(self) -> None:
         if hasattr(self, 'redis'):
@@ -34,9 +57,9 @@ class Cache:
 
     async def set(self, *path: str | int, model: Union[Dict[str, Any], PydanticBaseModel], nx: bool=False) -> bool:
         name = ":".join([str(x) for x in path])
-        data = model.model_dump() if isinstance(model, PydanticBaseModel) else model
+        data = model.model_dump_json() if isinstance(model, PydanticBaseModel) else json.dumps(model)
 
-        res = await self.redis.set(name, json.dumps(data), ex=604800, nx=nx)
+        res = await self.redis.set(name, data, ex=604800, nx=nx)
 
         if res:
             return True
