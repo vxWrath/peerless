@@ -1,15 +1,10 @@
 import asyncio
 
-from peerless_lib import Cache, Database, create_tables, get_logger
+from peerless_lib import Cache, Database, get_logger
 
 logger = get_logger()
 
-FIRST_RUN = True # Set to False after you have ran the docker-compose command for the first time
-
 async def main():
-    if FIRST_RUN:
-        create_tables()
-
     cache = Cache()
     db = Database(cache)
 

@@ -1,8 +1,7 @@
 import datetime
 import os
-import time
+from typing import List
 
-import sqlalchemy.exc
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -10,7 +9,6 @@ from sqlalchemy import (
     ForeignKey,
     PrimaryKeyConstraint,
     create_engine,
-    inspect,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -55,37 +53,9 @@ class PlayerLeagueTable(Base):
     waitlisted_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     blacklisted: Mapped[bool] = mapped_column(Boolean, default=False)
 
-def wait_for_db(url: str, retries: int = 3, delay: int = 10):
-    time.sleep(delay)
+def create_missing_tables(missing_tables: List[str]) -> None:
+    engine = create_engine(os.getenv("DATABASE_URL", ""), echo=False)
 
-    for _ in range(retries):
-        try:
-            engine = create_engine(url, echo=False)
-
-            conn = engine.connect()
-            conn.close()
-
-            logger.info("Database is ready!")
-            return engine
-        except sqlalchemy.exc.OperationalError:
-            time.sleep(delay)
-
-    raise RuntimeError("Database connection failed")
-
-def create_tables() -> None:
-    url = os.getenv("DATABASE_URL", "")
-    engine = wait_for_db(url)
-
-    logger.info("Checking if tables exist...")
-    with engine.connect() as conn:
-        inspector = inspect(conn)
-        existing_tables = inspector.get_table_names()
-        all_tables = set(Base.metadata.tables.keys())
-        missing_tables = all_tables - set(existing_tables)
-
-        if missing_tables:
-            logger.info(f"Missing tables detected: {missing_tables}")
-            Base.metadata.create_all(bind=engine)
-            logger.info("Missing tables created.")
-        else:
-            logger.info("All tables already exist. No action taken.")
+    logger.info(f"Missing tables detected: {missing_tables}")
+    Base.metadata.create_all(bind=engine)
+    logger.info("Missing tables created.")

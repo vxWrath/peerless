@@ -61,7 +61,7 @@ class DataModel(PydanticBaseModel, Mapping):
             key in super().__getattribute__('__pydantic_fields__').keys()
             and key not in super().__getattribute__('__pydantic_fields_set__')
         ):
-            raise ValueError(f"'{self.__class__.__name__}.{key}' is not currently available. Make sure it has been fetched.")
+            raise ValueError(f"'{self.__class__.__name__}.{key}' is not currently available. Make sure it has been retrieved.")
         
         return super().__getattribute__(key)
     

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from enum import Enum
@@ -8,6 +9,7 @@ from discord.utils import MISSING
 
 from .cache import Cache
 from .models import LeagueData, PlayerData, PlayerLeagueData
+from .schema import create_missing_tables
 
 __all__ = (
     'Database',
@@ -43,7 +45,25 @@ class Database:
 
     async def connect(self) -> None:
         """Connect to the PostgreSQL database."""
-        self.pool = await asyncpg.create_pool(dsn=os.getenv("DATABASE_URL", ""), init=postgres_initializer)
+        for _ in range(2):
+            try:
+                self.pool = await asyncpg.create_pool(dsn=os.getenv("DATABASE_URL", ""), init=postgres_initializer)
+                break
+            except asyncpg.PostgresError:
+                await asyncio.sleep(10)
+        else:
+            raise RuntimeError(f"Failed to connect to the database")
+            
+        # Ensure the necessary tables exist
+        table_names = [table.value for table in Table]
+
+        existing_tables = await self.pool.fetch("SELECT table_name FROM information_schema.tables WHERE table_schema='public'")
+        existing_table_names = {row['table_name'] for row in existing_tables}
+
+        missing_tables = [table for table in table_names if table not in existing_table_names]
+
+        if missing_tables:
+            create_missing_tables(missing_tables)
 
     async def close(self) -> None:
         """Close the database connection pool."""
