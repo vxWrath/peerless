@@ -4,6 +4,10 @@ from typing import Optional
 
 from .logger import get_logger
 
+__all__ = (
+    'get_env',
+)
+
 logger = get_logger()
 
 def get_env(name: str, default: Optional[str]=None) -> str:

@@ -2,7 +2,7 @@ services:
     bot:
         build:
             context: .
-            dockerfile: Dockerfile
+            dockerfile: Dockerfile.bot
         depends_on:
             - db
             - redis
@@ -12,6 +12,21 @@ services:
             - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
         volumes:
             - .:/bot
+
+    dashboard:
+        build:
+            context: .
+            dockerfile: Dockerfile.dashboard
+        depends_on:
+            - db
+            - redis
+        environment:
+            - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+            - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
+        ports:
+            - "8000:8000"
+        volumes:
+            - .:/dashboard
 
     db:
         image: postgres:17.5

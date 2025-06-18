@@ -23,7 +23,7 @@ def get_logger(name: str = "peerless", level: int = logging.INFO) -> logging.Log
         fmt="%(log_color)s[%(asctime)s][%(levelname)s] %(message)s",
         datefmt='%m/%d/%Y %I:%M:%S %p',
         log_colors={
-            "DEBUG": "cyan",
+            "DEBUG": "white",
             "INFO": "green",
             "WARNING": "yellow",
             "ERROR": "red",

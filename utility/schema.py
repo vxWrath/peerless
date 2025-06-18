@@ -16,6 +16,10 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from .env import get_env
 from .logger import get_logger
 
+__all__ = (
+    "Table",
+)
+
 logger = get_logger()
 
 class Table(str, Enum):

@@ -162,12 +162,12 @@ class Database:
         )
 
         return player_data
-    
-    async def create_player_league(self, player_data: PlayerData, league_data: LeagueData) -> PlayerLeagueData:
+
+    async def create_player_league(self, player_data: PlayerData, league_data: LeagueData, *, keys: Set[str]) -> PlayerLeagueData:
         """Create a new PlayerLeagueData entry in the database."""
 
         player_league_data = PlayerLeagueData(player_id=player_data.id, league_id=league_data.id).bind(self)
-        player_league_data.__pydantic_fields_set__.update(PlayerLeagueData.model_fields.keys())
+        player_league_data.__pydantic_fields_set__.update(keys)
 
         await self.insert(
             table = Table.PLAYER_LEAGUES,
@@ -202,6 +202,10 @@ class Database:
                 # Fetch missing fields from database
                 query, args = Query.select(table=Table.LEAGUES.value, columns=missing, where={"id": league_id})
                 data = await self.pool.fetchrow(query, *args)
+
+                if not data:
+                    log.debug(f"No data found for ID '{league_id}' in {Table.LEAGUES.value!r} database")
+                    return None
                 
                 league_data = league_data.model_validate(dict(data) | league_data.model_dump(include=necessary_keys))
                 log.debug(f"Fetched missing keys for ID '{league_id}' from {Table.LEAGUES.value!r} database")
@@ -306,7 +310,7 @@ class Database:
             player_data = await self.create_player(player_id)
 
         if league_data and not player_data.leagues.get(league_data.id):
-            player_league_data = await self.create_player_league(player_data, league_data)
+            player_league_data = await self.create_player_league(player_data, league_data, keys=keys or set())
             player_data.leagues[player_league_data.league_id] = player_league_data
             
         return player_data

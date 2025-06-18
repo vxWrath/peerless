@@ -37,6 +37,10 @@ __all__ = (
     'GlobalPing',
     'PlayerData',
     'PlayerLeagueData',
+    'DemandData',
+    'SuspensionData',
+    'ContractData',
+    'SettingType'
 )
 
 type SettingType = Literal['alert', 'channel', 'day', 'number', 'option', 'ping', 'role', 'status', 'theme', 'timezone']
