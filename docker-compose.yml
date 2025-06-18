@@ -1,5 +1,7 @@
 services:
     bot:
+        profiles:
+            - main
         build:
             context: .
             dockerfile: Dockerfile.bot
@@ -8,12 +10,14 @@ services:
             - redis
         environment:
             - TOKEN=${TOKEN}
-            - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+            - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
             - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
         volumes:
             - .:/bot
 
     dashboard:
+        profiles:
+            - main
         build:
             context: .
             dockerfile: Dockerfile.dashboard
@@ -21,7 +25,7 @@ services:
             - db
             - redis
         environment:
-            - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+            - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
             - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
         ports:
             - "8000:8000"
