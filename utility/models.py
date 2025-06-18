@@ -44,6 +44,8 @@ type SettingType = Literal['alert', 'channel', 'day', 'number', 'option', 'ping'
 class DataModel(PydanticBaseModel, Mapping):
     model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
 
+    _db: 'Database' = PrivateAttr(init=False)
+
     @model_validator(mode='wrap')
     @classmethod
     def model_validator(cls: Type[Self], data: Dict[str, Any], handler: ModelWrapValidatorHandler[Self]) -> Self:
@@ -99,12 +101,14 @@ class DataModel(PydanticBaseModel, Mapping):
             yield from ((k, v) for k, v in pydantic_extra.items())
         yield from computed_fields_repr_args
     
+    def bind(self, db: 'Database') -> Self:
+        self._db = db
+        return self
+
 class LeagueData(DataModel):
     id: int
     teams: Namespace[str, 'TeamData'] = Field(default_factory=Namespace)
     settings: Namespace[str, 'SettingData[Any]'] = Field(default_factory=Namespace)
-
-    _db: 'Database' = PrivateAttr(init=False)
 
 class SettingData[V: Any](PydanticBaseModel):
     value: V
@@ -129,8 +133,6 @@ class PlayerData(DataModel):
     id: int
     leagues: Namespace[int, 'PlayerLeagueData'] = Field(default_factory=Namespace)
 
-    _db: 'Database' = PrivateAttr(init=False)
-
     def __getattribute__(self, key: str) -> Any:
         return super(PydanticBaseModel, self).__getattribute__(key)
 
@@ -145,8 +147,6 @@ class PlayerLeagueData(DataModel):
     appointed_at: Optional[datetime.datetime] = None
     waitlisted_at: Optional[datetime.datetime] = None
     blacklisted: bool = False
-
-    _db: 'Database' = PrivateAttr(init=False)
 
     @property
     def id(self) -> Tuple[int, int]:

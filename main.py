@@ -1,6 +1,6 @@
 import asyncio
 
-from peerless_lib import Cache, Database, get_logger
+from utility import Cache, Database, get_logger
 
 logger = get_logger()
 

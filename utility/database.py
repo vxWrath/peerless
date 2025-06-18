@@ -12,12 +12,16 @@ from tenacity import (
 
 from .cache import Cache
 from .env import get_env
+from .logger import get_logger
 from .models import LeagueData, PlayerData, PlayerLeagueData
+from .query_builder import Query
 from .schema import Table, create_missing_tables
 
 __all__ = (
     'Database',
 )
+
+log = get_logger()
 
 def _dumps(obj: Any):
     return json.dumps(obj)
@@ -75,53 +79,49 @@ class Database:
 
     async def insert(self, table: Table, model: Union[LeagueData, PlayerData, PlayerLeagueData], excluded: Set[str]) -> None:
         dump = model.model_dump(mode='json', exclude=excluded)
+        query, args = Query.insert(table=table.value, values=dump)
 
         try:
-            await self.pool.execute(f"""
-                INSERT INTO {table.value} ({', '.join(dump.keys())}) 
-                VALUES ({', '.join(f'${i}' for i in range(1, len(dump.values())+1))});
-            """, *dump.values())
+            await self.pool.execute(query, *args)
+            log.debug(f"Inserted ID {model.id} into table {table.value!r}")
         except asyncpg.UniqueViolationError:
-            raise ValueError(f"{model.__class__.__name__} with ID {model.id} already exists.")
+            log.error(f"{model.__class__.__name__} with ID {model.id} already exists in table {table.value!r}")
         except asyncpg.PostgresError as e:
-            raise RuntimeError(f"Database error during insert: {e}")
+            log.error(f"Database error while trying to insert into table {table.value!r} with ID {model.id}", exc_info=e)
 
     async def update(self, table: Table, model: Union[LeagueData, PlayerData, PlayerLeagueData], *, keys: Set[str]) -> None:
         dump = model.model_dump(mode='json', include=set(keys))
 
+        if isinstance(model, PlayerLeagueData):
+            where = {"player_id": model.player_id, "league_id": model.league_id}
+        else:
+            where = {"id": model.id}
+
+        query, args = Query.update(table=table.value, values=dump, where=where)
+
         try:
-            if isinstance(model, PlayerLeagueData):
-                await self.pool.execute(f"""
-                    UPDATE {table.value} 
-                    SET {', '.join(f"{key}=${i}" for i, key in enumerate(dump.keys(), 1))} 
-                    WHERE player_id={len(dump.keys())+1} AND league_id={len(dump.keys())+2};
-                """, *dump.values(), model.player_id, model.league_id)
-            else:
-                await self.pool.execute(f"""
-                    UPDATE {table.value} 
-                    SET {', '.join(f"{key}=${i}" for i, key in enumerate(dump.keys(), 1))} 
-                    WHERE id={len(dump.keys())+1};
-                """, *dump.values(), model.id)
+            await self.pool.execute(query, *args)
+            log.debug(f"Updated ID {model.id} with keys {keys} in table {table.value!r}")
         except asyncpg.PostgresError as e:
-            raise RuntimeError(f"{model.__class__.__name__} with ID {model.id} had trouble being updated: {e}")
+            log.error(f"Database error while trying to update table {table.value!r} with ID {model.id}", exc_info=e)
 
     async def delete(self, table: Table, model: Union[LeagueData, PlayerData, PlayerLeagueData]) -> None:
+        if isinstance(model, PlayerLeagueData):
+            where = {"player_id": model.player_id, "league_id": model.league_id}
+        else:
+            where = {"id": model.id}
+
+        query, args = Query.delete(table=table.value, where=where)
+
         try:
-            if isinstance(model, PlayerLeagueData):
-                await self.pool.execute(f"""
-                    DELETE FROM {table.value} WHERE player_id=$1 AND league_id=$2
-                """, model.player_id, model.league_id)
-            else:
-                await self.pool.execute(f"""
-                    DELETE FROM {table.value} WHERE id=$1
-                """, model.id)
+            await self.pool.execute(query, *args)
+            log.debug(f"Deleted ID {model.id} from table {table.value!r}")
         except asyncpg.PostgresError as e:
-            raise RuntimeError(f"{model.__class__.__name__} with ID {model.id} could not be deleted: {e}")
+            log.error(f"Database error while trying to delete table {table.value!r} with ID {model.id}", exc_info=e)
 
     async def create_league(self, league_id: int, *, keys: Set[str]) -> LeagueData:
-        league_data = LeagueData(id=league_id)
+        league_data = LeagueData(id=league_id).bind(self)
         league_data.__pydantic_fields_set__.update(keys)
-        league_data._db = self
 
         await self.insert(
             table = Table.LEAGUES,
@@ -132,9 +132,8 @@ class Database:
         return league_data
     
     async def create_player(self, player_id: int) -> PlayerData:
-        player_data = PlayerData(id=player_id)
+        player_data = PlayerData(id=player_id).bind(self)
         player_data.__pydantic_fields_set__.update({"leagues"})
-        player_data._db = self
 
         await self.insert(
             table = Table.PLAYERS,
@@ -145,9 +144,8 @@ class Database:
         return player_data
     
     async def create_player_league(self, player_data: PlayerData, league_data: LeagueData) -> PlayerLeagueData:
-        player_league_data = PlayerLeagueData(player_id=player_data.id, league_id=league_data.id)
+        player_league_data = PlayerLeagueData(player_id=player_data.id, league_id=league_data.id).bind(self)
         player_league_data.__pydantic_fields_set__.update(PlayerLeagueData.model_fields.keys())
-        player_league_data._db = self
 
         await self.insert(
             table = Table.PLAYER_LEAGUES,
@@ -171,29 +169,34 @@ class Database:
 
         league_data, missing = await self.cache.hash_get(LeagueData, identifier=str(league_id), keys=keys)
 
-        if league_data and missing:
-            data = await self.pool.fetchrow(f"SELECT {', '.join(missing)} FROM {Table.LEAGUES.value} WHERE id=$1", league_id)
-            
-            league_data = league_data.model_validate(data | league_data.model_dump())
-            await self.cache.hash_set(league_data, identifier=str(league_id), keys=necessary_keys)
+        try:
+            if league_data and missing:
+                query, args = Query.select(table=Table.LEAGUES.value, columns=missing, where={"id": league_id})
+                data = await self.pool.fetchrow(query, *args)
+                
+                league_data = league_data.model_validate(data | league_data.model_dump())
+                await self.cache.hash_set(league_data, identifier=str(league_id), keys=necessary_keys)
 
-        elif not league_data:
-            data = await self.pool.fetchrow(f"SELECT {', '.join(necessary_keys)} FROM {Table.LEAGUES.value} WHERE id=$1", league_id)
+            elif not league_data:
+                query, args = Query.select(table=Table.LEAGUES.value, columns=necessary_keys, where={"id": league_id})
+                data = await self.pool.fetchrow(query, *args)
 
-            if not data:
-                return None
-            
-            league_data = LeagueData.model_validate(dict(data))
-            await self.cache.hash_set(league_data, identifier=str(league_id), keys=missing)
+                if not data:
+                    return None
+                
+                league_data = LeagueData.model_validate(dict(data))
+                await self.cache.hash_set(league_data, identifier=str(league_id), keys=missing)
+        except asyncpg.PostgresError as e:
+            log.error(f"Database error while trying to select from table {Table.LEAGUES.value!r} with ID {league_id}")
+            raise e
         
-        league_data._db = self
-        return league_data
+        return league_data.bind(self)
 
     async def fetch_player(self, player_id: int, league_id: Optional[int], *, keys: Set[str]) -> Optional[PlayerData]:
         necessary_keys = {'player_id', 'league_id'}
         necessary_keys.update(keys)
 
-        player_data, _ = await self.cache.hash_get(PlayerData, identifier=str(league_id), keys={'id'})
+        player_data, _ = await self.cache.hash_get(PlayerData, identifier=str(player_id), keys={'id'})
 
         if not league_id:
             player_league_data = None
@@ -202,42 +205,46 @@ class Database:
             player_league_data, missing = await self.cache.hash_get(PlayerLeagueData, identifier=f"{player_id}:{league_id}", keys=necessary_keys)
 
         if not player_data or missing:
-            async with self.pool.acquire() as con:
-                if not player_data:
-                    data = await con.fetchrow(f"SELECT id FROM {Table.PLAYERS.value} WHERE id=$1", player_id)
+            try:
+                async with self.pool.acquire() as con:
+                    if not player_data:
+                        data = await con.fetchrow(f"SELECT id FROM {Table.PLAYERS.value} WHERE id=$1", player_id)
 
-                    if not data:
-                        return None
-                    
-                    player_data = PlayerData.model_validate(dict(data) | {"leagues": {}})
-                    await self.cache.hash_set(player_data, identifier=str(player_id), keys={'id'})
+                        if not data:
+                            return None
+                        
+                        player_data = PlayerData.model_validate(dict(data) | {"leagues": {}})
+                        await self.cache.hash_set(player_data, identifier=str(player_id), keys={'id'})
 
-                if missing != MISSING and not player_league_data:
-                    data = await con.fetchrow(f"SELECT {', '.join(necessary_keys)} FROM {Table.PLAYER_LEAGUES.value} WHERE player_id=$1 AND league_id=$2", player_id, league_id)
+                    if missing != MISSING and not player_league_data:
+                        data = await con.fetchrow(f"SELECT {', '.join(necessary_keys)} FROM {Table.PLAYER_LEAGUES.value} WHERE player_id=$1 AND league_id=$2", player_id, league_id)
 
-                    if data:
-                        player_league_data = PlayerLeagueData.model_validate(dict(data))
-                        await self.cache.hash_set(player_league_data, identifier=f"{player_id}:{league_id}", keys=necessary_keys)
+                        if data:
+                            player_league_data = PlayerLeagueData.model_validate(dict(data))
+                            await self.cache.hash_set(player_league_data, identifier=f"{player_id}:{league_id}", keys=necessary_keys)
 
-                # We have player_league_data, but keys are missing.
-                elif missing != MISSING and player_league_data and missing:
-                    data = await con.fetchrow(f"SELECT {', '.join(missing)} FROM {Table.PLAYER_LEAGUES.value} WHERE player_id=$1 AND league_id=$2", player_id, league_id)
+                    # We have player_league_data, but keys are missing.
+                    elif missing != MISSING and player_league_data and missing:
+                        data = await con.fetchrow(f"SELECT {', '.join(missing)} FROM {Table.PLAYER_LEAGUES.value} WHERE player_id=$1 AND league_id=$2", player_id, league_id)
 
-                    if data:
-                        player_league_data = player_league_data.model_validate(dict(data) | player_league_data.model_dump())
-                        await self.cache.hash_set(player_league_data, identifier=f"{player_id}:{league_id}", keys=missing)
-                    else:
-                        # Set to None if no data is found because we didn't find all of the necessary keys.
-                        player_league_data = None
+                        if data:
+                            player_league_data = player_league_data.model_validate(dict(data) | player_league_data.model_dump())
+                            await self.cache.hash_set(player_league_data, identifier=f"{player_id}:{league_id}", keys=missing)
+                        else:
+                            # Shouldn't get here, but just in case
+                            # Set to None if no data is found because we didn't find all of the necessary keys.
+                            player_league_data = None
+            except asyncpg.PostgresError as e:
+                log.error(f"Database error while trying to select player data with ID {player_id}:{league_id}")
+                raise e     
 
-        player_data._db = self
         player_data.__pydantic_fields_set__.update({"leagues"})
 
         if player_league_data:
-            player_league_data._db = self
+            player_league_data.bind(self)
             player_data.leagues[player_league_data.league_id] = player_league_data
 
-        return player_data
+        return player_data.bind(self)
     
     async def produce_league(self, league_id: int, *, keys: Set[str]) -> LeagueData:
         league_data = await self.fetch_league(league_id, keys=keys)
