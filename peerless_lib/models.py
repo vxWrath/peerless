@@ -46,7 +46,7 @@ class DataModel(PydanticBaseModel, Mapping):
 
     @model_validator(mode='wrap')
     @classmethod
-    def model_validator(cls: Type[Self], data: Dict[str, Any], handler: ModelWrapValidatorHandler) -> Self:
+    def model_validator(cls: Type[Self], data: Dict[str, Any], handler: ModelWrapValidatorHandler[Self]) -> Self:
         for key, field in cls.model_fields.items():
             if (val := data.get(key, MISSING)) is MISSING:
                 continue
@@ -73,6 +73,31 @@ class DataModel(PydanticBaseModel, Mapping):
     
     def __len__(self) -> int:
         return len(self.model_dump())
+    
+    def __repr_args__(self):
+        computed_fields_repr_args = [
+            (k, getattr(self, k)) for k, v in self.__pydantic_computed_fields__.items() if v.repr
+        ]
+
+        for k, v in self.__dict__.items():
+            if k not in self.__pydantic_fields_set__:
+                continue
+
+            field = self.__pydantic_fields__.get(k)
+            if field and field.repr:
+                if v is not self:
+                    yield k, v
+                else:
+                    yield k, self.__repr_recursion__(v)
+
+        try:
+            pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+        except AttributeError:
+            pydantic_extra = None
+
+        if pydantic_extra is not None:
+            yield from ((k, v) for k, v in pydantic_extra.items())
+        yield from computed_fields_repr_args
     
 class LeagueData(DataModel):
     id: int
@@ -113,7 +138,7 @@ class PlayerLeagueData(DataModel):
     player_id: int
     league_id: int
 
-    demands: 'DemandData' = Field(default_factory=lambda: DemandData(remaining=0, available_at=datetime.datetime.now()))
+    demands: 'DemandData' = Field(default_factory=lambda: DemandData(remaining=3, available_at=datetime.datetime.now()))
     suspension: Optional['SuspensionData'] = None
     contract: Optional['ContractData'] = None
 
@@ -127,17 +152,17 @@ class PlayerLeagueData(DataModel):
     def id(self) -> Tuple[int, int]:
         return (self.player_id, self.league_id)
 
-class DemandData(TypedDict):
+class DemandData(PydanticBaseModel):
     remaining: int
     available_at: datetime.datetime
 
-class SuspensionData(TypedDict):
+class SuspensionData(PydanticBaseModel):
     reason: Optional[str]
     until: datetime.datetime
     banned: bool
     proof: Optional[List[str]]
 
-class ContractData(TypedDict):
+class ContractData(PydanticBaseModel):
     team_token: str
     notes: str
     salary: Optional[float]

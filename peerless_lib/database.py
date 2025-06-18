@@ -1,5 +1,4 @@
 import json
-from enum import Enum
 from typing import Any, Optional, Set, Union
 
 import asyncpg
@@ -14,18 +13,11 @@ from tenacity import (
 from .cache import Cache
 from .env import get_env
 from .models import LeagueData, PlayerData, PlayerLeagueData
-from .schema import create_missing_tables
+from .schema import Table, create_missing_tables
 
 __all__ = (
     'Database',
 )
-
-DATABASE_URL = get_env("DATABASE_URL")
-
-class Table(str, Enum):
-    PLAYERS = "players"
-    LEAGUES = "leagues"
-    PLAYER_LEAGUES = "player_leagues"
 
 def _dumps(obj: Any):
     return json.dumps(obj)
@@ -74,7 +66,7 @@ class Database:
         retry=retry_if_exception_type((asyncpg.PostgresError,))
     )
     async def _handle_connect(self) -> None:
-        self.pool = await asyncpg.create_pool(dsn=DATABASE_URL, init=postgres_initializer)
+        self.pool = await asyncpg.create_pool(dsn=get_env("DATABASE_URL"), init=postgres_initializer)
 
     async def close(self) -> None:
         """Close the database connection pool."""
@@ -232,13 +224,14 @@ class Database:
                     data = await con.fetchrow(f"SELECT {', '.join(missing)} FROM {Table.PLAYER_LEAGUES.value} WHERE player_id=$1 AND league_id=$2", player_id, league_id)
 
                     if data:
-                        player_league_data = player_league_data.model_validate(data | player_league_data.model_dump())
+                        player_league_data = player_league_data.model_validate(dict(data) | player_league_data.model_dump())
                         await self.cache.hash_set(player_league_data, identifier=f"{player_id}:{league_id}", keys=missing)
                     else:
                         # Set to None if no data is found because we didn't find all of the necessary keys.
                         player_league_data = None
 
         player_data._db = self
+        player_data.__pydantic_fields_set__.update({"leagues"})
 
         if player_league_data:
             player_league_data._db = self

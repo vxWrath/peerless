@@ -12,13 +12,14 @@ from tenacity import (
 )
 
 from .env import get_env
+from .logger import get_logger
 from .models import LeagueData, PlayerData, PlayerLeagueData
 
 __all__ = (
     "Cache",
 )
 
-REDIS_URL = get_env("REDIS_URL")
+log = get_logger()
 
 class Cache:
     def __init__(self) -> None:
@@ -27,58 +28,66 @@ class Cache:
         self.redis: Redis
 
     async def connect(self) -> None:
+        if hasattr(self, 'redis'):
+            return
+        
         self.redis = Redis.from_url(
-            REDIS_URL,
+            get_env("REDIS_URL"),
             decode_responses=True,
             health_check_interval=60,
             retry_on_timeout=True,
         )
 
-        await self._handle_connect()
+        await self._verify_connection()
 
     @retry(
         stop=stop_after_attempt(5),
         wait=wait_exponential(multiplier=1, min=1, max=10),
         retry=retry_if_not_exception_type((RuntimeError,))
     )
-    async def _handle_connect(self) -> None:
+    async def _verify_connection(self) -> None:
         if not hasattr(self, 'redis'):
             raise RuntimeError("Redis client is not initialized. Please call connect() first.")
         
         try:
-            await self.redis.initialize()
+            await self.redis.ping()
+            log.info("Connected to Redis")
         except Exception as e:
+            log.error("Failed to connect to Redis")
             raise ConnectionError(f"Failed to connect to Redis: {e}") from e
 
     async def close(self) -> None:
         if hasattr(self, 'redis'):
-            await self.redis.close()
             await self.redis.connection_pool.disconnect()
+            await self.redis.close()
+            log.info("Closed Redis connection")
 
-    async def set(self, *path: str | int, model: Union[Dict[str, Any], PydanticBaseModel], nx: bool=False) -> bool:
+    async def set(self, *path: str | int, model: Union[Dict[str, Any], PydanticBaseModel], nx: bool=False) -> None:
         name = ":".join([str(x) for x in path])
         data = model.model_dump_json() if isinstance(model, PydanticBaseModel) else json.dumps(model)
 
-        res = await self.redis.set(name, data, ex=604800, nx=nx)
-
-        if res:
-            return True
-        return False
+        await self.redis.set(name, data, ex=604800, nx=nx)
+        log.debug(f"Cache set with key {name!r}")
     
     async def get[T](self, *path: str | int, model_cls: Type[T]) -> Optional[T]:
         name = ":".join([str(x) for x in path])
         item = await self.redis.get(name)
 
         if not item:
+            log.debug(f"Cache missed with key {name!r}")
             return None
         
+        log.debug(f"Cache hit with key {name!r}")
+        
         data = json.loads(item)
-        if isinstance(model_cls, PydanticBaseModel):
+        if issubclass(model_cls, PydanticBaseModel):
             return model_cls.model_validate(data)
         return model_cls(**data)
     
     async def delete(self, *paths: Union[Tuple[str], str]) -> None:
-        await self.redis.delete(*[":".join(map(str, path)) if isinstance(path, (list, tuple)) else path for path in paths])
+        keys = [":".join(map(str, path)) if isinstance(path, (list, tuple)) else path for path in paths]
+        await self.redis.delete(*keys)
+        log.info(f"Deleted keys {keys}")
 
     async def hash_set(self, model: Union[LeagueData, PlayerData, PlayerLeagueData], *, identifier: str, keys: Iterable[str]) -> None:
         necessary_keys = {'league_id', 'player_id'} if isinstance(model, PlayerLeagueData) else {'id'}
@@ -92,6 +101,7 @@ class Cache:
             for k, v in dump.items()
         }) # type: ignore
         await self.redis.hexpire(name, 3600, *necessary_keys)
+        log.debug(f"Hash cache set with key {name!r}")
 
     async def hash_get[T: Union[LeagueData, PlayerData, PlayerLeagueData]](
         self, model_cls: Type[T], *, identifier: str, keys: Iterable[str]
@@ -102,6 +112,7 @@ class Cache:
         name = f"{model_cls.__name__.lower()}:{identifier}"
 
         if not await self.redis.exists(name):
+            log.debug(f"Hash cache missed with key {name!r}")
             return (None, necessary_keys)
         
         necessary_keys = list(necessary_keys)
@@ -116,4 +127,5 @@ class Cache:
             else:
                 unretrieved.add(key)
 
-        return (model_cls.model_validate(mapping, strict=True), unretrieved)
+        log.debug(f"Hash cache hit with key {name!r} | retreived: {list(mapping.keys())}, missing: {unretrieved or ''}")
+        return (model_cls.model_validate(mapping), unretrieved)

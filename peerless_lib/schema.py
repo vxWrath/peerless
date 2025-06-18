@@ -1,4 +1,5 @@
 import datetime
+from enum import Enum
 from typing import List
 
 from sqlalchemy import (
@@ -17,13 +18,18 @@ from .logger import get_logger
 
 logger = get_logger()
 
+class Table(str, Enum):
+    PLAYERS = "players"
+    LEAGUES = "leagues"
+    PLAYER_LEAGUES = "player_leagues"
+
 # Base model
 class Base(DeclarativeBase):
     pass
 
 # League table
 class LeagueTable(Base):
-    __tablename__ = "leagues"
+    __tablename__ = Table.LEAGUES.value
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     teams: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -31,13 +37,13 @@ class LeagueTable(Base):
 
 # Player table
 class PlayerTable(Base):
-    __tablename__ = "players"
+    __tablename__ = Table.PLAYERS.value
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
 
 # Association table
 class PlayerLeagueTable(Base):
-    __tablename__ = "player_leagues"
+    __tablename__ = Table.PLAYER_LEAGUES.value
     __table_args__ = (
         PrimaryKeyConstraint("player_id", "league_id"),
     )
