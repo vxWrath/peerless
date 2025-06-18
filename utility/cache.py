@@ -267,5 +267,5 @@ class Cache:
             else:
                 unretrieved.add(key)
 
-        logger.debug(f"Hash cache hit with key {name!r} | retreived: {list(mapping.keys())}, missing: {unretrieved or ''}")
+        logger.debug(f"Hash cache hit with key {name!r} | retrieved: {list(mapping.keys())}, missing: {unretrieved or ''}")
         return (model_cls.model_validate(mapping), unretrieved)
