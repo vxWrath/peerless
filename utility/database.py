@@ -21,7 +21,7 @@ __all__ = (
     'Database',
 )
 
-log = get_logger()
+logger = get_logger()
 
 def _dumps(obj: Any):
     return json.dumps(obj)
@@ -77,7 +77,7 @@ class Database:
         """Create asyncpg connection pool with retry logic."""
 
         self.pool = await asyncpg.create_pool(dsn=get_env("DATABASE_URL"), init=postgres_initializer)
-        log.info("Connected to PostgreSQL")
+        logger.info("Connected to PostgreSQL")
 
     async def close(self) -> None:
         """Close the database connection pool."""
@@ -85,7 +85,7 @@ class Database:
         if hasattr(self, 'pool'):
             await self.pool.close()
 
-        log.info("Closed PostgreSQL connection")
+        logger.info("Closed PostgreSQL connection")
 
     async def insert(self, table: Table, model: Union[LeagueData, PlayerData, PlayerLeagueData], excluded: Set[str]) -> None:
         """Insert a model into a database table."""
@@ -95,11 +95,11 @@ class Database:
 
         try:
             await self.pool.execute(query, *args)
-            log.debug(f"Inserted ID {model.id} into table {table.value!r}")
+            logger.debug(f"Inserted ID {model.id} into table {table.value!r}")
         except asyncpg.UniqueViolationError:
-            log.error(f"{model.__class__.__name__} with ID {model.id} already exists in table {table.value!r}")
+            logger.error(f"{model.__class__.__name__} with ID {model.id} already exists in table {table.value!r}")
         except asyncpg.PostgresError as e:
-            log.error(f"Database error while trying to insert into table {table.value!r} with ID {model.id}", exc_info=e)
+            logger.error(f"Database error while trying to insert into table {table.value!r} with ID {model.id}", exc_info=e)
 
     async def update(self, table: Table, model: Union[LeagueData, PlayerData, PlayerLeagueData], *, keys: Set[str]) -> None:
         """Update data in a database table."""
@@ -115,9 +115,9 @@ class Database:
 
         try:
             await self.pool.execute(query, *args)
-            log.debug(f"Updated ID {model.id} with keys {keys} in table {table.value!r}")
+            logger.debug(f"Updated ID {model.id} with keys {keys} in table {table.value!r}")
         except asyncpg.PostgresError as e:
-            log.error(f"Database error while trying to update table {table.value!r} with ID {model.id}", exc_info=e)
+            logger.error(f"Database error while trying to update table {table.value!r} with ID {model.id}", exc_info=e)
 
     async def delete(self, table: Table, model: Union[LeagueData, PlayerData, PlayerLeagueData]) -> None:
         """Delete data from a database table."""
@@ -131,9 +131,9 @@ class Database:
 
         try:
             await self.pool.execute(query, *args)
-            log.debug(f"Deleted ID {model.id} from table {table.value!r}")
+            logger.debug(f"Deleted ID {model.id} from table {table.value!r}")
         except asyncpg.PostgresError as e:
-            log.error(f"Database error while trying to delete table {table.value!r} with ID {model.id}", exc_info=e)
+            logger.error(f"Database error while trying to delete table {table.value!r} with ID {model.id}", exc_info=e)
 
     async def create_league(self, league_id: int, *, keys: Set[str]) -> LeagueData:
         """Create a new LeagueData entry in the database."""
@@ -204,11 +204,11 @@ class Database:
                 data = await self.pool.fetchrow(query, *args)
 
                 if not data:
-                    log.debug(f"No data found for ID '{league_id}' in {Table.LEAGUES.value!r} database")
+                    logger.debug(f"No data found for ID '{league_id}' in {Table.LEAGUES.value!r} database")
                     return None
                 
                 league_data = league_data.model_validate(dict(data) | league_data.model_dump(include=necessary_keys))
-                log.debug(f"Fetched missing keys for ID '{league_id}' from {Table.LEAGUES.value!r} database")
+                logger.debug(f"Fetched missing keys for ID '{league_id}' from {Table.LEAGUES.value!r} database")
                 await self.cache.hash_set(league_data, identifier=str(league_id), keys=necessary_keys)
 
             elif not league_data:
@@ -217,14 +217,14 @@ class Database:
                 data = await self.pool.fetchrow(query, *args)
 
                 if not data:
-                    log.debug(f"No data found for ID '{league_id}' in {Table.LEAGUES.value!r} database")
+                    logger.debug(f"No data found for ID '{league_id}' in {Table.LEAGUES.value!r} database")
                     return None
                 
                 league_data = LeagueData.model_validate(dict(data))
-                log.debug(f"Fetched data for ID '{league_id}' from {Table.LEAGUES.value!r} database")
+                logger.debug(f"Fetched data for ID '{league_id}' from {Table.LEAGUES.value!r} database")
                 await self.cache.hash_set(league_data, identifier=str(league_id), keys=missing or set())
         except asyncpg.PostgresError as e:
-            log.error(f"Database error while trying to select from table {Table.LEAGUES.value!r} with ID {league_id}")
+            logger.error(f"Database error while trying to select from table {Table.LEAGUES.value!r} with ID {league_id}")
             raise e
         
         return league_data.bind(self)
@@ -250,11 +250,11 @@ class Database:
                     data = await self.pool.fetchrow(f"SELECT id FROM {Table.PLAYERS.value} WHERE id=$1", player_id)
 
                     if not data:
-                        log.debug(f"No data found for ID {player_id} in {Table.PLAYERS.value!r} database")
+                        logger.debug(f"No data found for ID {player_id} in {Table.PLAYERS.value!r} database")
                         return None
                     
                     player_data = PlayerData.model_validate(dict(data) | {"leagues": {}})
-                    log.debug(f"Fetched data for ID '{player_id}' from {Table.PLAYERS.value!r} database")
+                    logger.debug(f"Fetched data for ID '{player_id}' from {Table.PLAYERS.value!r} database")
                     await self.cache.hash_set(player_data, identifier=str(player_id), keys={'id'})
 
                 if missing != MISSING and not player_league_data:
@@ -263,7 +263,7 @@ class Database:
 
                     if data:
                         player_league_data = PlayerLeagueData.model_validate(dict(data))
-                        log.debug(f"Fetched data for ID '{player_id}:{league_id}' from {Table.PLAYER_LEAGUES.value!r} database")
+                        logger.debug(f"Fetched data for ID '{player_id}:{league_id}' from {Table.PLAYER_LEAGUES.value!r} database")
                         await self.cache.hash_set(player_league_data, identifier=f"{player_id}:{league_id}", keys=necessary_keys)
 
                 # If some keys are missing, fetch them
@@ -273,14 +273,14 @@ class Database:
                     if data:
                         player_league_data = player_league_data.model_validate(dict(data) | player_league_data.model_dump(include=necessary_keys))
 
-                        log.debug(f"Fetched missing keys for ID '{player_id}:{league_id}' from {Table.PLAYER_LEAGUES.value!r} database")
+                        logger.debug(f"Fetched missing keys for ID '{player_id}:{league_id}' from {Table.PLAYER_LEAGUES.value!r} database")
                         await self.cache.hash_set(player_league_data, identifier=f"{player_id}:{league_id}", keys=missing)
                     else:
                         # No data found for missing keys (Should not happen)
                         player_league_data = None
 
             except asyncpg.PostgresError as e:
-                log.error(f"Database error while trying to select player data with ID {player_id}:{league_id}")
+                logger.error(f"Database error while trying to select player data with ID {player_id}:{league_id}")
                 raise e     
 
         player_data.__pydantic_fields_set__.update({"leagues"})
