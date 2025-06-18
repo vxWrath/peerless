@@ -6,7 +6,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY peerless_lib ./peerless_lib
+COPY utility ./utility
 COPY main.py .
 
 CMD ["python", "main.py"]

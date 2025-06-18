@@ -5,6 +5,9 @@ __all__ = (
 )
 
 class Namespace[K, V](dict[K, V]):
+    """A class that extends dict to allow attribute-style access
+    to dictionary keys. Supports nested dictionaries and lists."""
+
     @overload
     def __init__(self: 'Namespace[Any, Any]', /) -> None:
         ...

@@ -27,7 +27,6 @@ class Table(str, Enum):
 class Base(DeclarativeBase):
     pass
 
-# League table
 class LeagueTable(Base):
     __tablename__ = Table.LEAGUES.value
 
@@ -35,13 +34,11 @@ class LeagueTable(Base):
     teams: Mapped[dict] = mapped_column(JSONB, default=dict)
     settings: Mapped[dict] = mapped_column(JSONB, default=dict)
 
-# Player table
 class PlayerTable(Base):
     __tablename__ = Table.PLAYERS.value
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
 
-# Association table
 class PlayerLeagueTable(Base):
     __tablename__ = Table.PLAYER_LEAGUES.value
     __table_args__ = (
