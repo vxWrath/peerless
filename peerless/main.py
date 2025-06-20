@@ -1,10 +1,15 @@
 import asyncio
 import signal
-import sys
 
-print(sys.path, flush=True)
-
-from utility import Bot, Cache, Database, get_env, get_logger, setup_discord_logger
+from utility import (
+    Bot,
+    Cache,
+    Database,
+    create_logged_task,
+    get_env,
+    get_logger,
+    setup_discord_logger,
+)
 
 logger = get_logger("peerless")
 shutdown_event = asyncio.Event()
@@ -30,11 +35,12 @@ async def main():
         bot.database = Database(cache=bot.cache)
 
         await bot.cache.connect()
-        bot.cache.load_endpoints('peerless/ipc')
         await bot.database.connect()
 
-        bot_task = asyncio.create_task(bot.start(token))
-        shutdown_task = asyncio.create_task(shutdown_event.wait())
+        bot.cache.load_endpoints('peerless/ipc')
+
+        bot_task = create_logged_task(bot.start(token), name="bot_start")
+        shutdown_task = create_logged_task(shutdown_event.wait(), name="shutdown_event")
 
         done, pending = await asyncio.wait(
             [bot_task, shutdown_task],

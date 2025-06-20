@@ -26,6 +26,7 @@ from .ipcmodels import (
 )
 from .logger import get_logger
 from .models import LeagueData, PlayerData, PlayerLeagueData
+from .utils import create_logged_task
 
 __all__ = (
     "Cache",
@@ -59,7 +60,7 @@ class Cache(Generic[BotT]):
         self.pubsub = self.redis.pubsub()
 
         await self._verify_connection()
-        self._task = asyncio.create_task(self.listen())
+        self._task = create_logged_task(self.listen())
 
     @retry(
         stop=stop_after_attempt(5),
@@ -147,7 +148,7 @@ class Cache(Generic[BotT]):
                     future = self.futures.pop(message.channel)
                     future.set_result(resp)
             else:
-                asyncio.create_task(self.handle(message))
+                create_logged_task(self.handle(message))
 
     async def handle(self, message: RedisMessage) -> None:
         request = RedisRequest.model_validate(message.data)
