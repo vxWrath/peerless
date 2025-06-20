@@ -5,8 +5,8 @@ from .logger import get_logger
 
 logger = get_logger()
 
-def create_logged_task(coro: Coroutine, *, name: Optional[str] = None, suppress_cancelled: bool = False) -> asyncio.Task[Any]:
-    """Wraps a coroutine in a task that logs its start and completion."""
+def create_logged_task[T](coro: Coroutine[Any, Any, T], *, name: Optional[str] = None, suppress_cancelled: bool = False) -> asyncio.Task[T]:
+    """Wraps an asyncio.task for logging exceptions"""
 
     async def wrapper():
         try:
