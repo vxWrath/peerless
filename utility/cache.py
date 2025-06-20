@@ -2,8 +2,8 @@ import asyncio
 import importlib
 import importlib.util
 import json
-import os
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
+from pathlib import Path
+from typing import Any, Dict, Generic, Iterable, List, Optional, Set, Tuple, Type, Union
 
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ValidationError
@@ -15,6 +15,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from .bot import BotT
 from .env import get_env
 from .ipcmodels import (
     RedisCommand,
@@ -30,11 +31,12 @@ __all__ = (
     "Cache",
 )
 
-logger = get_logger()
+logger = get_logger("cache")
 
-class Cache:
-    def __init__(self) -> None:
+class Cache(Generic[BotT]):
+    def __init__(self, bot: BotT) -> None:
         self.loop = asyncio.get_running_loop()
+        self.bot  = bot
 
         self.responses: Dict[str, List[RedisResponse]] = {}
         self.futures: Dict[str, asyncio.Future[RedisResponse]] = {}
@@ -88,32 +90,31 @@ class Cache:
             logger.info("Closed Redis connection")
 
     def load_endpoints(self, folder_path: str) -> None:
-        for dirpath, _, files in os.walk(folder_path):
-            for file in files:
-                if not file.endswith('.py'):
-                    continue
-                
-                module_path = os.path.join(dirpath, file).replace(os.sep, '.').replace('/', '.')[:-3]
+        path = Path(folder_path).resolve()
 
-                spec = importlib.util.find_spec(module_path)
-                if not spec:
-                    raise FileNotFoundError(f"Couldn't find '{module_path}'")
-                
-                if not spec.loader:
-                    # No idea what spec.loader is, but I don't think it will ever be None
-                    # This is just to satisfy the type checker
-                    raise ImportError(f"Module '{module_path}' has no loader")
+        for file_path in path.rglob('*.py'):
+            relative_path = file_path.relative_to(path.parent).with_suffix('')
+            module_path = ".".join(relative_path.parts)
 
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+            spec = importlib.util.find_spec(module_path)
+            if not spec:
+                raise FileNotFoundError(f"Couldn't find '{module_path}'")
+            
+            if not spec.loader:
+                # No idea what spec.loader is, but I don't think it will ever be None
+                # This is just to satisfy the type checker
+                raise ImportError(f"Module '{module_path}' has no loader")
 
-                commands: List[Type[RedisCommand[PydanticBaseModel]]] = [
-                    obj for obj in module.__dict__.values() if isinstance(obj, type) and issubclass(obj, RedisCommand) and obj is not RedisCommand
-                ]
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
 
-                for cmd in commands:
-                    logger.info(f"Loading command {cmd.__name__!r} on channel {cmd.CHANNEL!r}")
-                    self.endpoints.append(cmd(self))
+            commands: List[Type[RedisCommand[PydanticBaseModel]]] = [
+                obj for obj in module.__dict__.values() if isinstance(obj, type) and issubclass(obj, RedisCommand) and obj is not RedisCommand
+            ]
+
+            for cmd in commands:
+                logger.debug(f"Registered command {cmd.__name__!r} with channel {cmd.CHANNEL!r}")
+                self.endpoints.append(cmd(self))
 
     async def listen(self) -> None:
         channels = [x.CHANNEL for x in self.endpoints]

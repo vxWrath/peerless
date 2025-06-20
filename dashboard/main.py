@@ -5,7 +5,7 @@ from utility import Cache, ReturnWhen, get_logger
 logger = get_logger()
 
 async def main():
-    cache = Cache()
+    cache = Cache(bot=None)
 
     await cache.connect()
     cache.load_endpoints('dashboard/ipc')

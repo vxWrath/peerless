@@ -14,5 +14,5 @@ class TestCommand(RedisCommand):
     MODEL = TestMessage
 
     async def handle(self, context: TestMessage) -> Optional[Dict[str, Any]]:
-        logger.info(f"Received message: {context.message}")
+        logger.debug(f"Received message: {context.message}")
         return {"status": "success"}

@@ -1,5 +1,5 @@
 import json
-from typing import Any, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Optional, Set, Union
 
 import asyncpg
 from discord.utils import MISSING
@@ -17,11 +17,14 @@ from .models import LeagueData, PlayerData, PlayerLeagueData
 from .query_builder import Query
 from .schema import Table, create_missing_tables
 
+if TYPE_CHECKING:
+    from .bot import BotT
+
 __all__ = (
     'Database',
 )
 
-logger = get_logger()
+logger = get_logger("database")
 
 def _dumps(obj: Any):
     return json.dumps(obj)
@@ -45,7 +48,7 @@ async def postgres_initializer(con):
 class Database:
     """Database class for handling PostgreSQL and cache operations."""
 
-    def __init__(self, cache: Cache) -> None:
+    def __init__(self, cache: Cache['BotT']) -> None:
         self.cache = cache
         self.pool: asyncpg.Pool
 

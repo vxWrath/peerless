@@ -6,3 +6,4 @@ redis[hiredis]
 colorlog
 psycopg2-binary
 tenacity
+pytz

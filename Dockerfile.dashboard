@@ -1,12 +1,11 @@
 FROM python:3.13.5-slim
 
-WORKDIR /app
-ENV PYTHONPATH=/app
+WORKDIR /website
+ENV PYTHONPATH=/website
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-COPY utility ./utility
-COPY dashboard ./dashboard
 
 CMD ["python", "dashboard/main.py"]

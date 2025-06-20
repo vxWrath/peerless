@@ -1,5 +1,6 @@
 services:
     bot:
+        init: true
         profiles:
             - main
         build:
@@ -16,6 +17,7 @@ services:
             - .:/bot
 
     dashboard:
+        init: true
         profiles:
             - main
         build:
@@ -30,7 +32,7 @@ services:
         ports:
             - "8000:8000"
         volumes:
-            - .:/dashboard
+            - .:/website
 
     db:
         image: postgres:17.5

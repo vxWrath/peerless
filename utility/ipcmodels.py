@@ -7,6 +7,7 @@ from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field, field_validator
 
 if TYPE_CHECKING:
+    from .bot import BotT
     from .cache import Cache
 
 __all__ = (
@@ -48,7 +49,7 @@ class RedisCommand[T: PydanticBaseModel]:
     CHANNEL: str
     MODEL: T
 
-    def __init__(self, cache: 'Cache') -> None:
+    def __init__(self, cache: 'Cache[BotT]') -> None:
         self.cache = cache
 
     async def handle(self, context: T) -> Optional[Dict[str, Any]]:

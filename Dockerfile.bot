@@ -1,12 +1,11 @@
 FROM python:3.13.5-slim
 
-WORKDIR /app
-ENV PYTHONPATH=/app
+WORKDIR /bot
+ENV PYTHONPATH=/bot
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-COPY utility ./utility
-COPY peerless ./peerless
 
 CMD ["python", "peerless/main.py"]
