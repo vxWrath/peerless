@@ -113,6 +113,7 @@ class LeagueData(DataModel):
     id: int
     teams: Namespace[str, 'TeamData'] = Field(default_factory=Namespace)
     settings: Namespace[str, 'SettingData[Any]'] = Field(default_factory=Namespace)
+    coaches: Namespace[str, 'CoachData'] = Field(default_factory=Namespace)
 
 class SettingData[V: Any](PydanticBaseModel):
     value: V
