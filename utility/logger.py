@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional
 
 import colorlog
 import pytz
+from discord.utils import setup_logging
 
 if TYPE_CHECKING:
     from .bot import Bot
@@ -29,8 +30,22 @@ class DiscordHandler(colorlog.StreamHandler):
         #    return True
         #else:
             return super().handle(record)
+    
+def _get_default_formatter(name: str) -> Formatter:
+    """Return a default colorized formatter."""
+    return Formatter(
+        fmt=f"%(log_color)s[{name}][%(asctime)s][%(levelname)s] %(message)s",
+        datefmt='%m/%d/%Y %I:%M:%S %p',
+        log_colors={
+            "DEBUG": "white",
+            "INFO": "green",
+            "WARNING": "yellow",
+            "ERROR": "red",
+            "CRITICAL": "bold_red",
+        },
+    )
 
-def get_logger(name: str = "peerless", level: int = logging.DEBUG, handler: Optional[logging.StreamHandler] = None) -> logging.Logger:
+def get_logger(name: str = "peerless", level: int = logging.INFO, handler: Optional[logging.StreamHandler] = None) -> logging.Logger:
     """Create and return a colorized logger instance."""
 
     logger = logging.getLogger(name)
@@ -44,24 +59,18 @@ def get_logger(name: str = "peerless", level: int = logging.DEBUG, handler: Opti
         handler = logging.StreamHandler()
     handler.setLevel(level)
 
-    formatter = Formatter(
-        fmt=f"%(log_color)s[{name}][%(asctime)s][%(levelname)s] %(message)s",
-        datefmt='%m/%d/%Y %I:%M:%S %p',
-        log_colors={
-            "DEBUG": "white",
-            "INFO": "green",
-            "WARNING": "yellow",
-            "ERROR": "red",
-            "CRITICAL": "bold_red",
-        },
-    )
+    formatter = _get_default_formatter(name)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
     return logger
 
-def setup_discord_logger(bot: 'Bot') -> logging.Logger:
+def setup_discord_logger(bot: 'Bot') ->  None:
     """Setup a logger that sends errors to the Discord bot."""
 
-    logger = get_logger("discord", level=logging.INFO, handler=DiscordHandler(bot))
-    return logger
+    setup_logging(
+        handler=DiscordHandler(bot),
+        formatter=_get_default_formatter("discord"),
+        level=logging.INFO,
+        root=False,
+    )

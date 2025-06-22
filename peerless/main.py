@@ -57,7 +57,7 @@ async def main():
     await bot.cache.close()
     await bot.database.close()
     await bot.close()
-    await bot.http.close()
+    bot.clear()
 
     logger.info("Bot has shut down.")
 

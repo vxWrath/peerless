@@ -142,14 +142,16 @@ class Tree(CommandTree[Bot]):
 
         if interaction.guild:
             if not interaction.guild.chunked:
-                tasks.chunk_guild = create_logged_task(interaction.guild.chunk())
+                tasks.chunk_guild = create_logged_task(
+                    asyncio.shield(interaction.guild.chunk())
+                )
 
                 if not options.modal_response and not options.defer_options.defer:
                     await interaction.response.defer(ephemeral=options.defer_options.ephemeral, thinking=options.defer_options.thinking)
 
             if options.league_data.retrieve:
                 tasks.fetch_league_data = create_logged_task(
-                    self.client.database.produce_league(interaction.guild.id, keys=options.league_data.keys)
+                    asyncio.shield(self.client.database.produce_league(interaction.guild.id, keys=options.league_data.keys))
                 )
 
         player_ids: Set[int] = set()
@@ -173,8 +175,8 @@ class Tree(CommandTree[Bot]):
 
                     if player_ids:
                         results, _ = await asyncio.wait([
-                            self.client.loop.create_task(
-                                self.client.database.produce_player(x, interaction.extras['league'])) 
+                            create_logged_task(
+                                asyncio.shield(self.client.database.produce_player(x, interaction.extras['league'])))
                                 for x in player_ids
                         ], timeout=None, return_when=asyncio.ALL_COMPLETED)
 
