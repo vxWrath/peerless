@@ -55,7 +55,11 @@ class BaseItem(DynamicItem[BaseT], template=''): # template is meant to be overr
         super().__init__(item=item, row=row)
 
         if not self._view or not isinstance(self._view, BaseView):
+            _view = self._view
             self._view = BaseView(timeout=None)
+            
+            if _view:
+                self._view.children = _view.children # type: ignore
 
         self.options = options or InteractionOptions()
 

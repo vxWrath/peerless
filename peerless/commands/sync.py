@@ -1,5 +1,6 @@
 import re
 from os import urandom
+from typing import Optional
 
 import discord
 from discord import app_commands, ui
@@ -19,10 +20,10 @@ from utility import (
 logger = get_logger()
 
 class ConfigSelect(BaseItem[ui.Select['ConfigView']], template="^sync:[a-f0-9]{8}$"):
-    def __init__(self) -> None:
+    def __init__(self, item_hex: Optional[str] = None) -> None:
         super().__init__(ui.Select(
             placeholder="Select a config",
-            custom_id=f"sync:{urandom(4).hex()}",
+            custom_id=f"sync:{item_hex or urandom(4).hex()}",
             options=[
                 discord.SelectOption(label="Reload Extensions", value="reload"),
                 discord.SelectOption(label="Sync Extensions", value="sync"),
@@ -30,12 +31,14 @@ class ConfigSelect(BaseItem[ui.Select['ConfigView']], template="^sync:[a-f0-9]{8
                 discord.SelectOption(label="Reload Extensions & Sync Commands", value="reload_sync"),
             ],
         ), options=InteractionOptions(
-            defer_options=DeferOptions(defer=False, ephemeral=True, thinking=True),
+            defer_options=DeferOptions(defer=False, ephemeral=True, thinking=False),
         ))
 
     @classmethod
     async def from_custom_id(cls, interaction: discord.Interaction, item: ui.Select['ConfigView'], match: re.Match[str], /):
-        return cls()
+        item_hex = match.group(0).split(':')[1]
+        print(f"Creating ConfigSelect from custom_id: {match.group(0)} ({item_hex})", flush=True)
+        return cls(item_hex=item_hex)
 
     async def callback(self, interaction: discord.Interaction['Bot']) -> None:
         guild = self.require_guild(interaction)
@@ -45,7 +48,8 @@ class ConfigSelect(BaseItem[ui.Select['ConfigView']], template="^sync:[a-f0-9]{8
 
         option.default = False
 
-        await response.edit(interaction, view=self.view)
+        msg = await response.edit(interaction, view=self.view)
+        print(getattr(msg, 'id', 'Unknown ID'), flush=True)
 
         try:
             if command == "reload":
