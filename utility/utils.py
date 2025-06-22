@@ -1,5 +1,7 @@
 import asyncio
-from typing import Awaitable, Optional
+from typing import Awaitable, Optional, List, Tuple
+from thefuzz.process import extract
+from thefuzz.utils import full_process
 
 from .logger import get_logger
 
@@ -23,3 +25,12 @@ def create_logged_task[T](coro: Awaitable[T], *, name: Optional[str] = None, sup
 
     task = asyncio.create_task(wrapper(), name=name)
     return task
+
+def get_matches(query: str, choices: List[str], *, limit: int=5) -> List[Tuple[str, int]]:
+    """Get the best matches for a query from a list of choices. Returns a list of tuples (choice, match_score [0-100])."""
+
+    query = full_process(query, force_ascii=True) if query else query
+    
+    if not query:
+        return [(x, 0) for x in choices][:limit]
+    return extract(query=query, choices=choices, limit=limit)
