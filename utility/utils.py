@@ -2,6 +2,7 @@ import asyncio
 from typing import Awaitable, Optional, List, Tuple
 from thefuzz.process import extract
 from thefuzz.utils import full_process
+from unicodedata import normalize as unicode_normalize
 
 from .logger import get_logger
 
@@ -34,3 +35,18 @@ def get_matches(query: str, choices: List[str], *, limit: int=5) -> List[Tuple[s
     if not query:
         return [(x, 0) for x in choices][:limit]
     return extract(query=query, choices=choices, limit=limit)
+
+def normalize(text: Optional[str]) -> str:
+    """Normalize a string to ASCII. This removes accents and special characters.
+    
+    :param text: Optional[str] The string to normalize
+    :return: str The normalized string
+    """
+    if text is None:
+        return ''
+    
+    try:
+        return unicode_normalize("NFKD", str(text)).encode('ascii', 'ignore').decode('utf-8')
+    except Exception as e:
+        logger.error("Failed to normalize text", exc_info=e)
+        return ''
