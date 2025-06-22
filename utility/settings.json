@@ -1,1 +1,86 @@
-{}
+[
+    {
+        "name": "Operations Roles",
+        "key": "operations_roles",
+        "default_value": {},
+        "type": "operations",
+        "description": "Each role has special permissions that manage various aspects of your server. These permissions are changeable per role.",
+        "required": true
+    },
+    {
+        "name": "Alerts/Notices",
+        "key": "alerts",
+        "default_value": null,
+        "type": "channel",
+        "description": "The channel where all league events (appoints, disbands, etc) are sent to",
+        "required": true
+    },
+    {
+        "name": "Setting Changes",
+        "key": "setting_changes",
+        "default_value": null,
+        "type": "channel",
+        "description": "Where all setting changes within the bot are logged",
+        "required": false
+    },
+    {
+        "name": "Referee Roles",
+        "key": "referee_roles",
+        "icon": "fa-solid fa-flag",
+        "default_value": [],
+        "type": "role",
+        "description": "Officials who oversee the rules and regulations of a game; makes verdicts on /challenge requests",
+        "required": false
+    },
+    {
+        "name": "Decisions",
+        "key": "decisions_channel",
+        "default_value": null,
+        "type": "channel",
+        "description": "Where the final verdict of a /challenge request is sent",
+        "required": false
+    },
+    {
+        "name": "Challenges",
+        "key": "challenges_channel",
+        "default_value": null,
+        "type": "channel",
+        "description": "A channel where all admins/referees can view /challenge requests",
+        "required": false
+    },
+    {
+        "name": "Streamer/Broadcaster Roles",
+        "key": "streamer_roles",
+        "icon": "fa-solid fa-headset",
+        "default_value": [],
+        "type": "role",
+        "description": "A person who records live games and possibly commentates",
+        "required": false
+    },
+    {
+        "name": "Streams/Broadcasts",
+        "key": "streams_channel",
+        "icon": "fa-solid fa-tower-broadcast",
+        "default_value": null,
+        "type": "channel",
+        "description": "This is where all streams/broadcasts will be sent",
+        "required": false
+    },
+    {
+        "name": "Streams/Broadcasts Ping Roles",
+        "key": "streams_ping_roles",
+        "icon": "fa-solid fa-bell",
+        "default_value": {"key": "here", "value": null},
+        "type": "ping",
+        "description": "When a stream/broadcast is posted, it will ping the appropriate roles",
+        "required": false
+    },
+    {
+        "name": "Timezone",
+        "key": "timezone",
+        "default_value": "America/New_York",
+        "type": "timezone",
+        "description": "The timezone in which your league operates in",
+        "required": true
+    }
+]
