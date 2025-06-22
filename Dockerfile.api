@@ -1,11 +1,11 @@
 FROM python:3.13.5-slim
 
-WORKDIR /website
-ENV PYTHONPATH=/website
+WORKDIR /api
+ENV PYTHONPATH=/api
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "dashboard/main.py"]
+CMD ["python", "api/main.py"]

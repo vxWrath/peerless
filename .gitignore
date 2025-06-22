@@ -1,9 +1,33 @@
 .git
+
+# python
 __pycache__
 *.pyc
 *.pyo
 *.pyd
-.env
-.DS_Store
-.idea
 test.py
+
+# Node
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+frontend/.svelte-kit
+frontend/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*

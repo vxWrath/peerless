@@ -16,13 +16,14 @@ services:
         volumes:
             - .:/bot
 
-    dashboard:
+    api:
         init: true
         profiles:
             - main
+            - website
         build:
             context: .
-            dockerfile: Dockerfile.dashboard
+            dockerfile: Dockerfile.api
         depends_on:
             - db
             - redis
@@ -32,7 +33,21 @@ services:
         ports:
             - "8000:8000"
         volumes:
-            - .:/website
+            - .:/api
+
+    frontend:
+        init: true
+        profiles:
+            - main
+            - website
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile.frontend
+        ports:
+            - "5173:5173"
+        volumes:
+            - ./frontend:/frontend
+            - /frontend/node_modules
 
     db:
         image: postgres:17.5

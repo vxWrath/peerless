@@ -31,13 +31,11 @@ async def main():
     async with bot:
         setup_discord_logger(bot)
 
-        bot.cache = Cache(bot=bot)
+        bot.cache = Cache(endpoints_folder='peerless/ipc', bot=bot)
         bot.database = Database(cache=bot.cache)
 
         await bot.cache.connect()
         await bot.database.connect()
-
-        bot.cache.load_endpoints('peerless/ipc')
 
         bot_task = create_logged_task(bot.start(token), name="bot_start")
         shutdown_task = create_logged_task(shutdown_event.wait(), name="shutdown_event")
