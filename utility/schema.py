@@ -37,6 +37,7 @@ class LeagueTable(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     teams: Mapped[dict] = mapped_column(JSONB, default=dict)
     settings: Mapped[dict] = mapped_column(JSONB, default=dict)
+    coaches: Mapped[dict] = mapped_column(JSONB, default=dict)
 
 class PlayerTable(Base):
     __tablename__ = Table.PLAYERS.value

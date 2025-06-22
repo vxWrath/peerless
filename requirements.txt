@@ -9,3 +9,5 @@ tenacity
 pytz
 black
 isort
+levenshtein
+thefuzz

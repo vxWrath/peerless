@@ -46,6 +46,7 @@ __all__ = (
     'DemandData',
     'SuspensionData',
     'ContractData',
+    'CoachData'
 )
 
 class DataModel(PydanticBaseModel, Mapping):
@@ -116,6 +117,7 @@ class LeagueData(DataModel):
     id: int
     teams: Namespace[str, 'TeamData'] = Field(default_factory=Namespace)
     settings: Namespace[str, 'SettingData[Any]'] = Field(default_factory=Namespace)
+    coaches: Namespace[str, 'CoachData'] = Field(default_factory=Namespace)
 
     async def update(self, keys: Set[str]) -> Self:
         if self._db is None:
@@ -230,6 +232,53 @@ class LeagueData(DataModel):
                 return team
             
         return None
+    
+    async def get_coach(self, *, token: Optional[str]=None, role_id: Optional[int]=None, acronym: Optional[str]=None) -> Tuple[Optional['CoachData'], Optional[discord.Role]]:
+        """Retrieve a coach based on the provided parameters."""
+        if not token and not role_id and not acronym:
+            raise ValueError("At least one of 'token', 'role_id', or 'acronym' must be provided.")
+
+        possible_coach: Optional['CoachData'] = None
+
+        if token:
+            possible_coach = next((x for x in self.coaches.values() if x.token == token), None)
+
+        if role_id and not possible_coach:
+            possible_coach = next((x for x in self.coaches.values() if x.role_id == role_id), None)
+
+        if acronym and not possible_coach:
+            possible_coach = next((x for x in self.coaches.values() if x.acronym == acronym), None)
+
+        # bullshit! maybe use levenshtein distance?
+
+        if not possible_coach:
+            return (None, None)
+        
+        role = None
+
+        if possible_coach.role_id:
+            role = self.guild.get_role(possible_coach.role_id)
+
+            if not role:
+                role = await self.guild.fetch_role(possible_coach.role_id)
+            # surely theres a better way to do this
+
+            if not role:
+                await self.remove_from_coach(possible_coach, 'role_id') # role doesn't exist??? kill it
+
+        return (possible_coach, role)
+
+async def remove_from_coach(self, coach: 'CoachData', field: Literal['role_id']) -> None:
+    """This is used to remove a coach role if it no longer exists."""
+    if self._db is None:
+        raise ValueError("Database not bound to this LeagueData instance.") # this'll never happen
+    
+    if not getattr(coach, field, None):
+        return
+    
+    setattr(coach, field, None)
+    await self.update({'coaches'})
+
 
 class SettingData[V: Any](PydanticBaseModel):
     value: V
