@@ -35,8 +35,9 @@ __all__ = (
 logger = get_logger("cache")
 
 class Cache(Generic[BotT]):
-    def __init__(self, bot: BotT) -> None:
+    def __init__(self, endpoints_folder: str, bot: BotT) -> None:
         self.loop = asyncio.get_running_loop()
+        self.endpoints_folder = endpoints_folder
         self.bot  = bot
 
         self.responses: Dict[str, List[RedisResponse]] = {}
@@ -60,6 +61,8 @@ class Cache(Generic[BotT]):
         self.pubsub = self.redis.pubsub()
 
         await self._verify_connection()
+
+        self.load_endpoints(self.endpoints_folder)
         self._task = create_logged_task(self.listen())
 
     @retry(
@@ -118,6 +121,8 @@ class Cache(Generic[BotT]):
                 self.endpoints.append(cmd(self))
 
     async def listen(self) -> None:
+        logger.info("Listening for Redis messages...")
+
         channels = [x.CHANNEL for x in self.endpoints]
         if channels:
             await self.pubsub.subscribe(*channels)
@@ -132,6 +137,7 @@ class Cache(Generic[BotT]):
             try:
                 message = RedisMessage.model_validate(message_data)
             except ValidationError as e:
+                logger.error(f"Validation error for redis message", exc_info=e)
                 continue  # Skip messages that don't match the expected format
             except Exception as e:
                 logger.error(f"Failed to parse message: {e}")
