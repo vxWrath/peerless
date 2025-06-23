@@ -11,3 +11,5 @@ black
 isort
 levenshtein
 thefuzz
+litestar[jwt,brotli,picologging]
+uvicorn[standard]

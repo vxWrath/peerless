@@ -1,17 +1,9 @@
-import asyncio
+# very basic setup app
+from litestar import Litestar, get
 
-from utility import Cache, ReturnWhen, get_logger
 
-logger = get_logger()
+@get("/")
+def hello_world() -> dict:
+    return {"message": "Hello from Litestar!"}
 
-async def main():
-    cache = Cache(endpoints_folder='dashboard/ipc', bot=None)
-
-    await cache.connect()
-
-    resp = await cache.send_message("test", {"message": "Hello, World!"}, return_when=ReturnWhen.FIRST)
-    print(resp, flush=True)
-
-    await cache.close()
-
-asyncio.run(main())
+app = Litestar(route_handlers=[hello_world])
