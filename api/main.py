@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from litestar import Litestar
+from litestar.config.cors import CORSConfig
 from litestar.controller import Controller
 
 from utility import Cache, Database, get_logger
@@ -58,8 +59,17 @@ async def on_shutdown(app: Litestar) -> None:
     if app.state.get("db"):
         await app.state.db.close()
 
+# Only allow specific origins
+cors_config = CORSConfig(
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Content-Type", "Authorization"],
+    allow_credentials=True,
+)
+
 app = Litestar(
     on_startup=[on_startup], 
     on_shutdown=[on_shutdown], 
-    openapi_config={} # type: ignore
+    openapi_config={},  # type: ignore
+    cors_config=cors_config,
 )
