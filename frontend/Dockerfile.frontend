@@ -1,20 +1,10 @@
-# Use Node.js image for building the frontend
 FROM node:20-alpine
 
-# Set working directory
 WORKDIR /frontend
-
-# Copy package files
 COPY package.json package-lock.json ./
 
-# Install dependencies
 RUN npm ci
 
-# Copy the rest of the frontend code
-COPY . .
-
-# Expose port used by Vite dev server
 EXPOSE 5173
 
-# Start the dev server
-CMD ["npm", "run", "dev", "--", "--host"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

@@ -97,8 +97,7 @@ class Bot(commands.AutoShardedBot):
                 continue
 
             if (
-                isinstance(obj, type)
-                and issubclass(obj, discord.ui.DynamicItem)
+                issubclass(obj, discord.ui.DynamicItem)
                 and obj is not discord.ui.DynamicItem
                 and obj is not BaseItem
             ):
@@ -116,11 +115,18 @@ class Bot(commands.AutoShardedBot):
 
 class Tree(CommandTree[Bot]):
     async def interaction_check(self, interaction: discord.Interaction[Bot]) -> bool:
+        if not self.client.is_ready():
+            await interaction.response.send_message(
+                content="**The bot is not ready yet. Please try again in a few moments.**",
+                ephemeral=True
+            )
+            return False
+
         if interaction.guild and interaction.guild.unavailable:
             try:
                 await response.send(
                     interaction,
-                    content="This server is unavailable. This is a discord issue.**",
+                    content="**This server is unavailable. This is a discord issue.**",
                     ephemeral=True
                 )
             except discord.HTTPException:
