@@ -30,10 +30,11 @@ services:
         environment:
             - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
             - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
+            - WATCHFILES_FORCE_POLLING=true
         ports:
             - "8000:8000"
         volumes:
-            - .:/api
+            - .:/backend
 
     frontend:
         init: true

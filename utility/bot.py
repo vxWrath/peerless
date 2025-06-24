@@ -97,8 +97,7 @@ class Bot(commands.AutoShardedBot):
                 continue
 
             if (
-                isinstance(obj, type)
-                and issubclass(obj, discord.ui.DynamicItem)
+                issubclass(obj, discord.ui.DynamicItem)
                 and obj is not discord.ui.DynamicItem
                 and obj is not BaseItem
             ):

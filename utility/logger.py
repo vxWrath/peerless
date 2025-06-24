@@ -54,6 +54,7 @@ def get_logger(name: str = "peerless", level: int = logging.INFO, handler: Optio
         return logger # Prevent duplicate handlers
 
     logger.setLevel(level)
+    logger.propagate = False
 
     if handler is None:
         handler = logging.StreamHandler()
