@@ -59,7 +59,6 @@ async def on_shutdown(app: Litestar) -> None:
     if app.state.get("db"):
         await app.state.db.close()
 
-# Only allow specific origins
 cors_config = CORSConfig(
     allow_origins=["http://localhost:5173"],
     allow_methods=["GET", "POST", "PUT", "DELETE"],
