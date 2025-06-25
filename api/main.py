@@ -3,9 +3,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
-from litestar import Litestar
+from litestar import Controller, Litestar
 from litestar.config.cors import CORSConfig
-from litestar.controller import Controller
 
 from utility import Cache, Database, get_logger
 from utility.api import PeerlessState
