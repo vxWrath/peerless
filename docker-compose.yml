@@ -30,6 +30,10 @@ services:
         environment:
             - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
             - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
+            - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
+            - TOKEN=${TOKEN}
+            - FRONTEND_HOST=localhost:5173
+            - API_HOST=localhost:8000
             - WATCHFILES_FORCE_POLLING=true
         ports:
             - "8000:8000"
