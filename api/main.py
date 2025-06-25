@@ -6,6 +6,7 @@ from pathlib import Path
 from litestar import Litestar
 from litestar.config.cors import CORSConfig
 from litestar.controller import Controller
+from litestar.middleware.session.server_side import ServerSideSessionConfig
 
 from utility import Cache, Database, get_logger
 
@@ -31,7 +32,7 @@ def load_controllers(app: Litestar) -> None:
     path = Path('api/controllers').resolve()
 
     for file_path in path.rglob('*.py'):
-        relative_path = file_path.relative_to(path.parent.parent).with_suffix('') # I hate that it has to be .parent.parent but it shouldnt change anytime soon
+        relative_path = file_path.relative_to(path.parent.parent).with_suffix('')
         module_path = ".".join(relative_path.parts)
 
         spec = importlib.util.find_spec(module_path)
@@ -61,14 +62,19 @@ async def on_shutdown(app: Litestar) -> None:
 
 cors_config = CORSConfig(
     allow_origins=["http://localhost:5173"],
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Content-Type", "Authorization"],
     allow_credentials=True,
 )
 
+session_config = ServerSideSessionConfig(
+    secret="your-secret-key-here-change-in-production"
+)
+
 app = Litestar(
-    on_startup=[on_startup], 
-    on_shutdown=[on_shutdown], 
-    openapi_config={},  # type: ignore
+    on_startup=[on_startup],
+    on_shutdown=[on_shutdown],
+    openapi_config={},
     cors_config=cors_config,
+    middleware=[session_config.middleware],
 )

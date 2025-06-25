@@ -7,7 +7,9 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"prepare": "svelte-kit sync || echo ''"
+		"prepare": "svelte-kit sync || echo ''",
+		"test": "vitest run",
+		"test:watch": "vitest"
 	},
 	"dependencies": {
 		"@fortawesome/fontawesome-free": "^6.7.2",
@@ -21,6 +23,7 @@
 		"svelte": "^5.0.0",
 		"tailwindcss": "^4.1.10",
 		"vite": "^6.2.6",
-		"vite-plugin-devtools-json": "^0.2.0"
+		"vite-plugin-devtools-json": "^0.2.0",
+		"vitest": "^2.1.8"
 	}
 }
