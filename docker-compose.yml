@@ -44,6 +44,8 @@ services:
         build:
             context: ./frontend
             dockerfile: Dockerfile.frontend
+        depends_on:
+            - api
         ports:
             - "5173:5173"
         volumes:

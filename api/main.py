@@ -8,6 +8,7 @@ from litestar.config.cors import CORSConfig
 from litestar.controller import Controller
 
 from utility import Cache, Database, get_logger
+from utility.api import PeerlessState
 
 logger = get_logger()
 
@@ -71,4 +72,8 @@ app = Litestar(
     on_shutdown=[on_shutdown], 
     openapi_config={},  # type: ignore
     cors_config=cors_config,
+    state=PeerlessState(state={
+        "cache": None,
+        "db": None,
+    })
 )
