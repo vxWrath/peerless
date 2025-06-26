@@ -1,3 +1,4 @@
+import asyncio
 from re import Pattern
 from typing import (
     TYPE_CHECKING,
@@ -99,6 +100,14 @@ class BaseItem(DynamicItem[BaseT], template=''): # template is meant to be overr
 
         if not await interaction.client.tree.interaction_check(interaction):
             return False
+        
+        if interaction.guild and not interaction.guild.chunked:
+            try:
+                await asyncio.shield(interaction.guild.chunk())
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                pass
         
         if interaction.channel and interaction.channel.type == discord.ChannelType.private:
             return True
