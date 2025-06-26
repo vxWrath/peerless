@@ -36,7 +36,7 @@ class Option(BaseModel):
     name: str
     description: str
 
-with open("../utility/settings.json") as f:
+with open("utility/settings.json") as f:
     data: List[Dict[str, Any]] = json.load(f)
 
 def _convert_to_setting(data: Dict[str, Any]) -> Union[Setting, SettingSupportsOptions, SettingSupportsMinMax]:

@@ -30,11 +30,12 @@ services:
         environment:
             - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
             - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
-            - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
+            - CLIENT_ID=${CLIENT_ID}
+            - CLIENT_SECRET=${CLIENT_SECRET}
+            - API_SECRET=${API_SECRET}
             - TOKEN=${TOKEN}
-            - FRONTEND_HOST=localhost:5173
-            - API_HOST=localhost:8000
-            - WATCHFILES_FORCE_POLLING=true
+            - FRONTEND_URL=${FRONTEND_URL}
+            - API_URL=${API_URL}
         ports:
             - "8000:8000"
         volumes:
@@ -50,6 +51,9 @@ services:
             dockerfile: Dockerfile.frontend
         depends_on:
             - api
+        environment:
+            - API_URL=${API_URL}
+            - API_SECRET=${API_SECRET}
         ports:
             - "5173:5173"
         volumes:

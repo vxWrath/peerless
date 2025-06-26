@@ -1,9 +1,11 @@
+from secrets import token_urlsafe
 from typing import Any, Dict, Optional
 
 from discord import Permissions
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import (
     ConfigDict,
+    Field,
     computed_field,
     field_serializer,
     field_validator,
@@ -13,7 +15,12 @@ from pydantic import (
 __all__ = (
     'DiscordUser',
     'DiscordPartialGuild',
+    'OAuthState'
 )
+
+class OAuthState(PydanticBaseModel):
+    token: str = Field(default_factory=lambda: token_urlsafe(16))
+    redirect_to: str
 
 class DiscordUser(PydanticBaseModel):
     session_token: str

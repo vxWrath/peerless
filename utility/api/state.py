@@ -11,5 +11,5 @@ __all__ = (
 )
 
 class PeerlessState(BaseState):
-    cache: 'Cache'
+    cache: 'Cache[None]'
     database: 'Database'

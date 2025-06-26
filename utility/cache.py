@@ -15,7 +15,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from .api import DiscordUser
+from .api import DiscordUser, OAuthState
 from .bot import BotT
 from .env import get_env
 from .ipcmodels import (
@@ -278,7 +278,16 @@ class Cache(Generic[BotT]):
 
         logger.debug(f"Hash cache hit with key {name!r} | retrieved: {list(mapping.keys())}, missing: {unretrieved or ''}")
         return (model_cls.model_validate(mapping), unretrieved)
-    
+
+    async def set_oauth_state(self, oauth_state: OAuthState) -> None:
+        await self.set("oauth", "states", oauth_state.token, model=oauth_state)
+
+    async def get_oauth_state(self, oauth_token: str) -> Optional[OAuthState]:
+        return await self.get("oauth", "states", oauth_token, model_cls=OAuthState)
+
+    async def delete_oauth_state(self, oauth_token: str) -> None:
+        await self.delete("oauth", "states", oauth_token)
+
     async def set_website_user(self, user: DiscordUser) -> None:
         await self.set("website", "users", user.session_token, model=user)
 

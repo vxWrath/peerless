@@ -1,32 +1,42 @@
-import os
-from typing import Dict, Any
+from typing import Any, Dict, Optional
 
-import aiohttp
-from litestar import get
+from discord import Permissions
+from discord.utils import oauth_url
+from litestar import Request, get
 from litestar.controller import Controller
+from litestar.exceptions import NotAuthorizedException
 
+from utility import get_env
+from utility.api import OAuthState, PeerlessState
+
+CLIENT_ID = get_env("CLIENT_ID")
+CLIENT_SECRET = get_env("CLIENT_SECRET")
+FRONTEND_URL = get_env("FRONTEND_URL")
+API_SECRET = get_env("API_SECRET")
 
 class BotController(Controller):
     path = "/bot"
 
-    @get("/application")
-    async def get_application_info(self) -> Dict[str, Any]:
-        client_id = os.environ.get("DISCORD_CLIENT_ID")
-        if client_id:
-            return {"id": client_id}
+    @get("/info")
+    async def get_bot_info(self, request: Request) -> Dict[str, Any]:
+        if request.headers.get("Authorization") != API_SECRET:
+            raise NotAuthorizedException(detail="Invalid API secret.")
+        return {}
+
+    @get("/oauth")
+    async def get_oauth_url(self, state: PeerlessState, request: Request, redirect_to: Optional[str]) -> Dict[str, str]:
+        if request.headers.get("Authorization") != API_SECRET:
+            raise NotAuthorizedException(detail="Invalid API secret.")
         
-        try:
-            token = os.environ.get("TOKEN")
-            if not token:
-                return {"error": "No Discord token or client ID configured"}
-            
-            headers = {"Authorization": f"Bot {token}"}
-            async with aiohttp.ClientSession() as session:
-                async with session.get("https://discord.com/api/v10/oauth2/applications/@me", headers=headers) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return {"id": data.get("id")}
-                    else:
-                        return {"error": f"Failed to fetch application info: {response.status}"}
-        except Exception as e:
-            return {"error": f"Failed to get application info: {str(e)}"}
+        redirect_to = redirect_to or "/servers"
+        
+        oauth_state = OAuthState(redirect_to=redirect_to)
+        await state.cache.set_oauth_state(oauth_state)
+
+        return {"url": oauth_url(
+            client_id=CLIENT_ID,
+            permissions=Permissions(),
+            redirect_uri=f"{FRONTEND_URL.replace('frontend', 'localhost')}/auth/callback",
+            scopes=["identify", "guilds"],
+            state=oauth_state.token
+        )}

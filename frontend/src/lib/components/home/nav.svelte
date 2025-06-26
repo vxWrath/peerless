@@ -1,7 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
-
     let showDropdown = $state(false);
     let menuOpen = $state(false);
     let mobileMenu: HTMLElement;
@@ -9,85 +6,9 @@
     let authenticated = $state(false);
     let user = $state({
         username: '',
-        discord_id: '',
         avatar_url: ''
     });
 
-    async function storeUserData(userData) {
-        try {
-            await fetch('/account/user', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(userData)
-            });
-            localStorage.setItem('user', JSON.stringify(userData));
-        } catch (e) {
-            console.error('Failed to store user data:', e);
-            localStorage.setItem('user', JSON.stringify(userData));
-        }
-    }
-
-    async function loadUserData(discord_id) {
-        try {
-            const response = await fetch(`/account/user/${discord_id}`);
-            if (response.ok) {
-                const userData = await response.json();
-                if (!userData.error) {
-                    return userData;
-                }
-            }
-        } catch (e) {
-            console.error('Failed to load user data from API:', e);
-        }
-        return null;
-    }
-
-    onMount(async () => {
-        if (browser) {
-            const savedUser = localStorage.getItem('user');
-            if (savedUser) {
-                try {
-                    const localUser = JSON.parse(savedUser);
-                    const apiUser = await loadUserData(localUser.discord_id);
-
-                    if (apiUser) {
-                        user = apiUser;
-                        authenticated = true;
-                        localStorage.setItem('user', JSON.stringify(apiUser));
-                    } else {
-                        user = localUser;
-                        authenticated = true;
-                    }
-                } catch (e) {
-                    localStorage.removeItem('user');
-                }
-            }
-
-            const urlParams = new URLSearchParams(window.location.search);
-            const username = urlParams.get('username');
-            const discord_id = urlParams.get('discord_id');
-            const avatar_url = urlParams.get('avatar_url');
-
-            if (username && discord_id && avatar_url) {
-                const userData = {
-                    username: decodeURIComponent(username),
-                    discord_id: discord_id,
-                    avatar_url: decodeURIComponent(avatar_url)
-                };
-
-                user = userData;
-                authenticated = true;
-
-                await storeUserData(userData);
-
-                const newUrl = window.location.pathname;
-                window.history.replaceState({}, '', newUrl);
-            }
-        }
-    });
-	
     function toggleMobileMenu() {
         menuOpen = !menuOpen;
         mobileMenu.classList.toggle('hidden');
@@ -95,18 +16,6 @@
 
     function toggleDropdown() {
         showDropdown = !showDropdown;
-    }
-
-    function handleLogout() {
-        if (browser) {
-            localStorage.removeItem('user');
-        }
-        authenticated = false;
-        user = {
-            username: '',
-            discord_id: '',
-            avatar_url: ''
-        };
     }
 </script>
 
@@ -159,7 +68,7 @@
                                     <p>Custom Bots</p>
                                 </div>
                             </a>
-                            <button onclick={handleLogout} class="block pl-0.5 py-2 hover:bg-red-500 transition-colors w-full text-left">
+                            <button class="block pl-0.5 py-2 hover:bg-red-500 transition-colors w-full text-left">
                                 <div class="flex items-center space-x-2 text-right">
                                     <i class="fas fa-sign-out-alt w-6"></i>
                                     <p>Log Out</p>
@@ -170,7 +79,7 @@
                 </div>
             {:else}
                 <a
-                    href="/account/login/discord"
+                    href="/auth/login?redirect_to=/servers"
                     class="flex items-center space-x-2 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer"
                 >
                     <i class="fab fa-discord"></i>
