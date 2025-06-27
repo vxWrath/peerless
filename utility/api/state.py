@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from aiohttp import ClientSession
 from litestar.datastructures import State as BaseState
 
 if TYPE_CHECKING:
@@ -13,3 +14,4 @@ __all__ = (
 class PeerlessState(BaseState):
     cache: 'Cache[None]'
     database: 'Database'
+    http_client: 'ClientSession'

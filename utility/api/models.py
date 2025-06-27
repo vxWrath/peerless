@@ -23,12 +23,13 @@ class OAuthState(PydanticBaseModel):
     redirect_to: str
 
 class DiscordUser(PydanticBaseModel):
-    session_token: str
+    session_token: str = Field(default_factory=lambda: token_urlsafe(32))
     
     id: int
     username: str
     avatar: Optional[str]
     global_name: str
+    guilds: Dict[int, 'DiscordPartialGuild'] = Field(default_factory=dict)
 
     @computed_field
     def avatar_url(self) -> str:
@@ -53,12 +54,10 @@ class DiscordPartialGuild(PydanticBaseModel):
     @field_validator('permissions', mode='wrap')
     @classmethod
     def perm_validator(cls, value: str | int, handler: ...) -> Permissions:
-        if isinstance(value, int):
-            v = Permissions._from_value(value)
-        elif value.isdigit():
-            v = Permissions._from_value(int(value))
-        else:
-            raise ValueError(f'Invalid permissions value: {value}')
+        try:
+            v = Permissions._from_value(value if isinstance(value, int) else int(value))
+        except Exception as e:
+            raise ValueError(f'Invalid permissions value: {value}') from e
         
         return handler(v)
     
@@ -68,8 +67,9 @@ class DiscordPartialGuild(PydanticBaseModel):
     
     @model_validator(mode='before')
     @classmethod
-    def model_validate(cls, data: Dict[str, Any]) -> Any:  
+    def before_model_validate(cls, data: Dict[str, Any]) -> Any:  
         data['permissions'] = data.pop('permissions_new', None) or data['permissions']
+        data['id'] = int(data['id'])
         return data
     
     @computed_field

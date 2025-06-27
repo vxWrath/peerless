@@ -11,6 +11,7 @@ services:
             - redis
         environment:
             - TOKEN=${TOKEN}
+            - INVITE_URL="https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&permissions=${REQUIRED_PERMISSIONS}&integration_type=0&scope=bot+applications.commands"
             - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
             - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
         volumes:
@@ -30,6 +31,7 @@ services:
         environment:
             - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
             - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
+            - INVITE_URL="https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&permissions=${REQUIRED_PERMISSIONS}&integration_type=0&scope=bot+applications.commands"
             - CLIENT_ID=${CLIENT_ID}
             - CLIENT_SECRET=${CLIENT_SECRET}
             - API_SECRET=${API_SECRET}
@@ -52,6 +54,7 @@ services:
         depends_on:
             - api
         environment:
+            - PUBLIC_INVITE_URL="https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&permissions=${REQUIRED_PERMISSIONS}&integration_type=0&scope=bot+applications.commands"
             - API_URL=${API_URL}
             - API_SECRET=${API_SECRET}
         ports:

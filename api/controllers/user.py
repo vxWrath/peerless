@@ -1,21 +1,19 @@
+import json
+
 from litestar import Request, get
 from litestar.controller import Controller
-from litestar.exceptions import NotAuthorizedException
 
-from utility.api import DiscordUser, PeerlessState
+from utility.api import DiscordUser, PeerlessState, require_user
 
 
 class UserController(Controller):
     path = "/api/user"
 
-    @get("/")
-    async def get_user(self, request: Request, state: PeerlessState) -> DiscordUser:
-        session_token = request.cookies.get("session")
-        if not session_token:
-            raise NotAuthorizedException(detail="Missing auth cookies.")
-
-        user = await state.cache.get_website_user(session_token)
-        if not user:
-            raise NotAuthorizedException(detail="Invalid auth cookies.")
-
-        return user
+    @get("/", guards=[require_user])
+    async def get_user(self, request: Request[DiscordUser, None, PeerlessState]) -> DiscordUser:
+        print(json.dumps(request.user.model_dump(mode="json"), indent=4), flush=True)
+        return request.user
+    
+    @get("/<int:user_id>", guards=[require_user])
+    async def get_user_by_id(self, request: Request[DiscordUser, None, PeerlessState], user_id: int) -> DiscordUser:
+        return {}

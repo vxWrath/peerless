@@ -1,13 +1,14 @@
 <script lang="ts">
+    import { PUBLIC_INVITE_URL } from '$env/static/public';
+
     let showDropdown = $state(false);
     let menuOpen = $state(false);
     let mobileMenu: HTMLElement;
 
-    let authenticated = $state(false);
-    let user = $state({
-        username: '',
-        avatar_url: ''
-    });
+    const { data } = $props();
+
+    const authenticated = data.authenticated;
+    const user = data.user;
 
     function toggleMobileMenu() {
         menuOpen = !menuOpen;
@@ -32,7 +33,7 @@
                 <a href="#pricing" class="text-xl text-gray-300 hover:text-pink-400 transition-colors">Pricing</a>
                 <a href="#support" class="text-xl text-gray-300 hover:text-pink-400 transition-colors">Support</a>
                 <a href="#status" class="text-xl text-gray-300 hover:text-pink-400 transition-colors">Status</a>
-                <a href="https://discord.com/api/oauth2/authorize?client_id=1105640024113954829&permissions=9193109515280&scope=bot+applications.commands" class="text-xl text-gray-300 hover:text-pink-400 transition-colors">Invite</a>
+                <a href={PUBLIC_INVITE_URL} class="text-xl text-gray-300 hover:text-pink-400 transition-colors">Invite</a>
             </div>
         </div>
 
@@ -56,24 +57,24 @@
                         <div
                             class="absolute right-0 top-12 mt-1 w-48 bg-gray-800 text-white shadow-lg border-2 border-gray-700"
                         >
-                            <a href="/servers" class="block pl-0.5 py-2 hover:bg-gray-700 transition-colors">
+                            <a href="/servers" class="block pl-0.5 py-2 hover:bg-gray-700 transition-colors cursor-pointer">
                                 <div class="flex items-center space-x-2 text-right">
                                     <i class="fas fa-server w-6"></i>
                                     <p>Servers</p>
                                 </div>
                             </a>
-                            <a href="/custom-bots" class="block pl-0.5 py-2 hover:bg-gray-700 transition-colors">
+                            <a href="/custom-bots" class="block pl-0.5 py-2 hover:bg-gray-700 transition-colors cursor-pointer">
                                 <div class="flex items-center space-x-2 text-right">
                                     <i class="fas fa-cogs w-6"></i>
                                     <p>Custom Bots</p>
                                 </div>
                             </a>
-                            <button class="block pl-0.5 py-2 hover:bg-red-500 transition-colors w-full text-left">
+                            <a href="/auth/logout" class="block pl-0.5 py-2 hover:bg-red-500 transition-colors w-full text-left cursor-pointer">
                                 <div class="flex items-center space-x-2 text-right">
                                     <i class="fas fa-sign-out-alt w-6"></i>
                                     <p>Log Out</p>
                                 </div>
-                            </button>
+                            </a>
                         </div>
                     {/if}
                 </div>
@@ -112,7 +113,7 @@
                 <a href="#support" class="w-full py-0.5 bg-gray-900 text-2xl font-medium text-gray-300 hover:text-pink-400 transition-colors">Support</a>
                 <a href="#status" class="w-full py-0.5 bg-gray-800 text-2xl font-medium text-gray-300 hover:text-pink-400 transition-colors">Status</a>
                 <a 
-                    href="https://discord.com/api/oauth2/authorize?client_id=1105640024113954829&permissions=9193109515280&scope=bot+applications.commands" 
+                    href={PUBLIC_INVITE_URL} 
                     class="w-full py-0.5 bg-gray-900 text-2xl font-medium text-gray-300 hover:text-pink-400 transition-colors"
                 >Invite</a>
             </div>

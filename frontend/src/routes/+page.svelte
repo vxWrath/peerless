@@ -1,12 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import Header from '$lib/components/home/nav.svelte';
+	import Header from '$lib/components/nav.svelte';
 
-	let mounted = $state(false);
-	
-	onMount(() => {
-		mounted = true;
-	});
+	const { data } = $props();
 </script>
 
 <svelte:head>
@@ -15,5 +10,5 @@
 </svelte:head>
 
 <div class="bg-gray-800 text-gray-200 min-h-screen flex flex-col">
-	<Header/>
+	<Header {data} />
 </div>

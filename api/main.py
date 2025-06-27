@@ -3,11 +3,12 @@ import importlib.util
 import sys
 from pathlib import Path
 
+from aiohttp import ClientSession
 from litestar import Controller, Litestar
 from litestar.config.cors import CORSConfig
 
 from utility import Cache, Database, get_logger
-from utility.api import PeerlessState
+from utility.api import PeerlessState, require_secret
 
 logger = get_logger()
 
@@ -20,12 +21,14 @@ async def on_startup(app: Litestar) -> None:
         db = Database(app.state.cache)
         app.state.db = db
 
+    if not app.state.get("http_client"):
+        app.state.http_client = ClientSession()
+
     await app.state.cache.connect()
     await app.state.db.connect()
+    await app.state.http_client.__aenter__()
 
     load_controllers(app)
-    for route in app.routes:
-        print(route.path, route.methods)
 
 def load_controllers(app: Litestar) -> None:
     path = Path('api/controllers').resolve()
@@ -59,10 +62,13 @@ async def on_shutdown(app: Litestar) -> None:
     if app.state.get("db"):
         await app.state.db.close()
 
+    if app.state.get("http_client"):
+        await app.state.http_client.close()
+
 cors_config = CORSConfig(
     allow_origins=["http://localhost:5173"],
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-Session-Token"],
     allow_credentials=True,
 )
 
@@ -74,5 +80,6 @@ app = Litestar(
     state=PeerlessState(state={
         "cache": None,
         "db": None,
-    })
+    }),
+    guards=[require_secret],
 )
